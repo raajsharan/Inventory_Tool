@@ -6,9 +6,14 @@ import Dashboard from './pages/Dashboard.jsx';
 import AssetList from './pages/Assets/AssetList.jsx';
 import AssetForm from './pages/Assets/AssetForm.jsx';
 import AssetImport from './pages/Assets/AssetImport.jsx';
+import BeijingAssetList from './pages/BeijingAssets/BeijingAssetList.jsx';
+import BeijingAssetForm from './pages/BeijingAssets/BeijingAssetForm.jsx';
+import BeijingAssetImport from './pages/BeijingAssets/BeijingAssetImport.jsx';
 import CustomPageBuilder from './pages/CustomPages/CustomPageBuilder.jsx';
 import CustomPageView from './pages/CustomPages/CustomPageView.jsx';
 import CustomPageImport from './pages/CustomPages/CustomPageImport.jsx';
+import CustomPageRecordForm from './pages/CustomPages/CustomPageRecordForm.jsx';
+import ReportBuilder from './pages/Reports/ReportBuilder.jsx';
 import Users from './pages/Admin/Users.jsx';
 import Dropdowns from './pages/Admin/Dropdowns.jsx';
 import TagRanges from './pages/Admin/TagRanges.jsx';
@@ -23,14 +28,25 @@ export default function App() {
       <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="/dashboard" element={<Dashboard />} />
+
         <Route path="/assets" element={<AssetList />} />
         <Route path="/assets/new" element={<AssetForm mode="create" />} />
         <Route path="/assets/:id" element={<AssetForm mode="edit" />} />
         <Route path="/assets/import" element={<AssetImport />} />
+
+        <Route path="/beijing-assets" element={<BeijingAssetList />} />
+        <Route path="/beijing-assets/new" element={<BeijingAssetForm mode="create" />} />
+        <Route path="/beijing-assets/:id" element={<BeijingAssetForm mode="edit" />} />
+        <Route path="/beijing-assets/import" element={<BeijingAssetImport />} />
+
         <Route path="/custom-pages/new" element={<CustomPageBuilder />} />
         <Route path="/custom-pages/:slug" element={<CustomPageView />} />
-        <Route path="/custom-pages/:slug/new" element={<CustomPageView initialAction="new" />} />
+        <Route path="/custom-pages/:slug/new" element={<CustomPageRecordForm mode="create" />} />
+        <Route path="/custom-pages/:slug/:recordId/edit" element={<CustomPageRecordForm mode="edit" />} />
         <Route path="/custom-pages/:slug/import" element={<CustomPageImport />} />
+
+        <Route path="/reports" element={<ReportBuilder />} />
+
         <Route path="/admin/users" element={<Users />} />
         <Route path="/admin/dropdowns" element={<Dropdowns />} />
         <Route path="/admin/tag-ranges" element={<TagRanges />} />

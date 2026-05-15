@@ -15,7 +15,7 @@ function extractTagNumber(tag) {
   return m ? parseInt(m[0], 10) : NaN;
 }
 
-export default function AssetForm({ mode }) {
+export default function AssetForm({ mode, apiPrefix = '/assets', listPath = '/assets', entityLabel = 'Asset' }) {
   const { id } = useParams();
   const nav = useNavigate();
   const { message } = App.useApp();
@@ -48,7 +48,7 @@ export default function AssetForm({ mode }) {
       .catch(() => {});
 
     if (mode === 'edit' && id) {
-      api.get(`/assets/${id}`).then(r => {
+      api.get(`${apiPrefix}/${id}`).then(r => {
         form.setFieldsValue({
           vmName: r.data.vm_name,
           osHostname: r.data.os_hostname,
@@ -93,7 +93,7 @@ export default function AssetForm({ mode }) {
 
     let cancelled = false;
     setAutoTagLoading(true);
-    api.get('/assets/tag-stats', { params: { department } })
+    api.get(`${apiPrefix}/tag-stats`, { params: { department } })
       .then(({ data }) => {
         if (cancelled) return;
         setAutoTagInfo(data);
@@ -117,13 +117,13 @@ export default function AssetForm({ mode }) {
     setSubmitting(true);
     try {
       if (mode === 'create') {
-        await api.post('/assets', values);
-        message.success('Asset created');
+        await api.post(apiPrefix, values);
+        message.success(`${entityLabel} created`);
       } else {
-        await api.put(`/assets/${id}`, values);
-        message.success('Asset updated');
+        await api.put(`${apiPrefix}/${id}`, values);
+        message.success(`${entityLabel} updated`);
       }
-      nav('/assets');
+      nav(listPath);
     } catch (e) {
       const err = e.response?.data;
       if (err?.details && typeof err.details === 'object' && !Array.isArray(err.details)) {
@@ -141,8 +141,10 @@ export default function AssetForm({ mode }) {
   const range = rangeFor(department);
 
   return (
-    <Card title={<Typography.Title level={4} style={{ margin: 0 }}>{mode === 'create' ? 'Add Asset' : 'Edit Asset'}</Typography.Title>}>
-      <Form form={form} layout="vertical" onFinish={onFinish}
+    <Card title={<Typography.Title level={4} style={{ margin: 0 }}>{mode === 'create' ? `Add ${entityLabel}` : `Edit ${entityLabel}`}</Typography.Title>}
+      className="inventory-form-card"
+    >
+      <Form form={form} layout="vertical" onFinish={onFinish} className="inventory-form"
         initialValues={{ manageEngineInstalled: false, tenableInstalled: false, idracEnabled: false }}>
         <Divider orientation="left">Identity</Divider>
         <Row gutter={16}>
@@ -250,7 +252,7 @@ export default function AssetForm({ mode }) {
                   onEnableOverride={() => setManualOverride(true)}
                 />
               ) : (
-                <AssetTagPicker department={department} />
+                <AssetTagPicker department={department} apiPrefix={apiPrefix} />
               )}
             </Form.Item>
             {mode === 'create' && isAdmin && manualOverride && (

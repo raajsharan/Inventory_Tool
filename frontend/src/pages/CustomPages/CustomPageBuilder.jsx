@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Card, Form, Input, Button, Space, Typography, Select, Switch, Row, Col, App,
+  Card, Form, Input, Button, Space, Typography, Select, Switch, Row, Col, App, Alert,
 } from 'antd';
 import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
 import api from '../../api/client';
@@ -29,6 +29,7 @@ export default function CustomPageBuilder() {
         description: values.description,
         fields: (values.fields || []).map(f => ({
           ...f,
+          section: (f.section && f.section.trim()) || 'General',
           options: f.field_type === 'dropdown' && f.optionsCsv
             ? f.optionsCsv.split(',').map(s => s.trim()).filter(Boolean)
             : undefined,
@@ -46,7 +47,7 @@ export default function CustomPageBuilder() {
   return (
     <Card title={<Typography.Title level={4} style={{ margin: 0 }}>Create New Page</Typography.Title>}>
       <Form form={form} layout="vertical" onFinish={onFinish}
-        initialValues={{ fields: [{ field_type: 'text', is_required: false }] }}>
+        initialValues={{ fields: [{ field_type: 'text', is_required: false, section: 'Basic Information' }] }}>
         <Row gutter={16}>
           <Col xs={24} md={10}>
             <Form.Item name="name" label="Page Name" rules={[{ required: true }]}>
@@ -59,22 +60,33 @@ export default function CustomPageBuilder() {
         </Row>
 
         <Typography.Title level={5}>Fields</Typography.Title>
+        <Alert
+          type="info"
+          showIcon
+          style={{ marginBottom: 12 }}
+          message="Group fields into sections (e.g. Basic Information, Ownership) — the Add Record page renders one panel per section."
+        />
         <Form.List name="fields">
           {(items, { add, remove }) => (
             <>
               {items.map(({ key, name, ...rest }) => (
                 <Row key={key} gutter={8} align="bottom" style={{ marginBottom: 8 }}>
-                  <Col xs={24} md={6}>
+                  <Col xs={24} md={5}>
+                    <Form.Item {...rest} name={[name, 'section']} label="Section">
+                      <Input placeholder="Basic Information" />
+                    </Form.Item>
+                  </Col>
+                  <Col xs={24} md={5}>
                     <Form.Item {...rest} name={[name, 'label']} label="Label" rules={[{ required: true }]}>
                       <Input />
                     </Form.Item>
                   </Col>
-                  <Col xs={12} md={4}>
+                  <Col xs={12} md={3}>
                     <Form.Item {...rest} name={[name, 'field_type']} label="Type" rules={[{ required: true }]}>
                       <Select options={FIELD_TYPES} />
                     </Form.Item>
                   </Col>
-                  <Col xs={24} md={8}>
+                  <Col xs={24} md={6}>
                     <Form.Item shouldUpdate noStyle>
                       {() => form.getFieldValue(['fields', name, 'field_type']) === 'dropdown' ? (
                         <Form.Item {...rest} name={[name, 'optionsCsv']} label="Options (comma-separated)">
@@ -83,7 +95,7 @@ export default function CustomPageBuilder() {
                       ) : <Form.Item label=" " ><Input disabled placeholder="—" /></Form.Item>}
                     </Form.Item>
                   </Col>
-                  <Col xs={12} md={3}>
+                  <Col xs={12} md={2}>
                     <Form.Item {...rest} name={[name, 'is_required']} label="Required" valuePropName="checked">
                       <Switch />
                     </Form.Item>
@@ -95,7 +107,7 @@ export default function CustomPageBuilder() {
                   </Col>
                 </Row>
               ))}
-              <Button icon={<PlusOutlined />} onClick={() => add({ field_type: 'text', is_required: false })}>
+              <Button icon={<PlusOutlined />} onClick={() => add({ field_type: 'text', is_required: false, section: 'Basic Information' })}>
                 Add Field
               </Button>
             </>

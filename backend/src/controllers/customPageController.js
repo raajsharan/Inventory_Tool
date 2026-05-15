@@ -58,10 +58,11 @@ async function create(req, res, next) {
       const f = fields[i];
       if (!f.label || !f.field_type) throw new ApiError(400, `Field #${i+1} requires label and field_type`);
       const key = slugify(f.field_key || f.label).replace(/-/g, '_');
+      const section = (f.section && String(f.section).trim()) || 'General';
       await client.query(
-        `INSERT INTO custom_page_fields (page_id, field_key, label, field_type, options, is_required, sort_order)
-         VALUES ($1,$2,$3,$4,$5,$6,$7)`,
-        [page.rows[0].id, key, f.label, f.field_type, f.options ? JSON.stringify(f.options) : null, !!f.is_required, i]
+        `INSERT INTO custom_page_fields (page_id, field_key, label, field_type, options, is_required, sort_order, section)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+        [page.rows[0].id, key, f.label, f.field_type, f.options ? JSON.stringify(f.options) : null, !!f.is_required, i, section]
       );
     }
     await client.query('COMMIT');

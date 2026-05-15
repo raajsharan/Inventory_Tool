@@ -7,6 +7,13 @@ async function list(req, res, next) {
   } catch (e) { next(e); }
 }
 
+async function stats(req, res, next) {
+  try {
+    const table = ['assets', 'beijing_assets'].includes(req.query.table) ? req.query.table : 'assets';
+    res.json({ items: await svc.allTagStats(table) });
+  } catch (e) { next(e); }
+}
+
 async function create(req, res, next) {
   try {
     const created = await svc.create({
@@ -40,4 +47,4 @@ async function remove(req, res, next) {
   } catch (e) { next(e); }
 }
 
-module.exports = { list, create, update, remove };
+module.exports = { list, stats, create, update, remove };

@@ -3,15 +3,19 @@ import { Card, Button, Upload, Space, Typography, Alert, Table, Tag } from 'antd
 import { DownloadOutlined, UploadOutlined, InboxOutlined } from '@ant-design/icons';
 import api from '../../api/client';
 
-export default function AssetImport() {
+export default function AssetImport({
+  apiPrefix = '/assets',
+  title = 'Import Assets from Excel',
+  templateFilename = 'asset-import-template.xlsx',
+}) {
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
 
   async function onDownloadTemplate() {
-    const res = await api.get('/assets/template', { responseType: 'blob' });
+    const res = await api.get(`${apiPrefix}/template`, { responseType: 'blob' });
     const url = URL.createObjectURL(new Blob([res.data]));
-    const a = document.createElement('a'); a.href = url; a.download = 'asset-import-template.xlsx'; a.click();
+    const a = document.createElement('a'); a.href = url; a.download = templateFilename; a.click();
     URL.revokeObjectURL(url);
   }
 
@@ -20,7 +24,7 @@ export default function AssetImport() {
     try {
       const form = new FormData();
       form.append('file', file);
-      const res = await api.post('/assets/import', form, { headers: { 'Content-Type': 'multipart/form-data' } });
+      const res = await api.post(`${apiPrefix}/import`, form, { headers: { 'Content-Type': 'multipart/form-data' } });
       setResult(res.data);
       onSuccess?.(res.data);
     } catch (e) {
@@ -30,7 +34,7 @@ export default function AssetImport() {
   }
 
   return (
-    <Card title={<Typography.Title level={4} style={{ margin: 0 }}>Import Assets from Excel</Typography.Title>}>
+    <Card title={<Typography.Title level={4} style={{ margin: 0 }}>{title}</Typography.Title>}>
       <Alert
         type="info"
         showIcon

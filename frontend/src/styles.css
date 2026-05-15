@@ -21,3 +21,68 @@ html, body, #root { height: 100%; margin: 0; }
 }
 .card-stat .ant-statistic-title { color: #64748b; font-weight: 500; }
 .card-stat .ant-statistic-content { color: #0f172a; font-weight: 700; }
+
+/* -------------------------------------------------------------------
+   Unified inventory-form styling — applied to Add/Edit Asset, Beijing
+   Asset, and Custom Page record forms.
+   ------------------------------------------------------------------- */
+.inventory-form .ant-form-item-label > label {
+  color: #475569;
+  font-weight: 500;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.inventory-form .ant-input,
+.inventory-form .ant-input-affix-wrapper,
+.inventory-form .ant-input-number,
+.inventory-form .ant-picker,
+.inventory-form .ant-select:not(.ant-select-customize-input) .ant-select-selector,
+.inventory-form .ant-input-password {
+  background-color: #f0fdf4 !important;
+  border-color: #bbf7d0 !important;
+}
+
+.inventory-form .ant-input:hover,
+.inventory-form .ant-input-affix-wrapper:hover,
+.inventory-form .ant-input-number:hover,
+.inventory-form .ant-picker:hover,
+.inventory-form .ant-select:not(.ant-select-customize-input):hover .ant-select-selector {
+  border-color: #4ade80 !important;
+}
+
+.inventory-form .ant-input:focus,
+.inventory-form .ant-input-affix-wrapper-focused,
+.inventory-form .ant-input-number-focused,
+.inventory-form .ant-picker-focused,
+.inventory-form .ant-select-focused:not(.ant-select-customize-input) .ant-select-selector {
+  border-color: #16a34a !important;
+  box-shadow: 0 0 0 2px rgba(34,197,94,0.15) !important;
+}
+
+.inventory-form .ant-input-disabled,
+.inventory-form .ant-select-disabled .ant-select-selector {
+  background-color: #f8fafc !important;
+  border-color: #e5e7eb !important;
+  color: #94a3b8 !important;
+}
+
+.inventory-form .ant-divider-with-text,
+.inventory-form .section-divider {
+  text-transform: uppercase;
+  font-size: 11px;
+  color: #94a3b8 !important;
+  letter-spacing: 1.5px;
+  font-weight: 600;
+  margin-top: 8px !important;
+  margin-bottom: 12px !important;
+}
+.inventory-form .ant-divider-with-text::before,
+.inventory-form .ant-divider-with-text::after {
+  border-block-start-color: #e2e8f0 !important;
+}
+
+.inventory-form-card .ant-card-head-title {
+  font-weight: 700;
+}

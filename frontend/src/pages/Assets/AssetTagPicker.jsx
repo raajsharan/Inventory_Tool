@@ -7,7 +7,7 @@ import {
 } from '@ant-design/icons';
 import api from '../../api/client';
 
-export default function AssetTagPicker({ value, onChange, department }) {
+export default function AssetTagPicker({ value, onChange, department, apiPrefix = '/assets' }) {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -18,7 +18,7 @@ export default function AssetTagPicker({ value, onChange, department }) {
     setLoading(true);
     setError(null);
     try {
-      const { data } = await api.get('/assets/tag-stats', { params: { department } });
+      const { data } = await api.get(`${apiPrefix}/tag-stats`, { params: { department } });
       setStats(data);
     } catch (e) {
       setError(e.response?.data?.error || 'Failed to load tag stats');

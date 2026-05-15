@@ -10,7 +10,12 @@ import {
 import api from '../../api/client';
 import { useAuth } from '../../context/AuthContext.jsx';
 
-export default function AssetList() {
+export default function AssetList({
+  apiPrefix = '/assets',
+  basePath = '/assets',
+  title = 'Asset Inventory',
+  exportFilename = 'assets-export.xlsx',
+}) {
   const { user } = useAuth();
   const { message } = App.useApp();
   const nav = useNavigate();
@@ -28,7 +33,7 @@ export default function AssetList() {
     setLoading(true);
     try {
       const params = { page, pageSize, ...filters };
-      const { data } = await api.get('/assets', { params });
+      const { data } = await api.get(apiPrefix, { params });
       setData(data);
     } finally { setLoading(false); }
   }
@@ -41,7 +46,7 @@ export default function AssetList() {
   function onSearch() { setPage(1); load(); }
 
   async function onDelete(id) {
-    await api.delete(`/assets/${id}`);
+    await api.delete(`${apiPrefix}/${id}`);
     message.success('Asset deleted');
     load();
   }
@@ -50,10 +55,10 @@ export default function AssetList() {
     const params = new URLSearchParams(
       Object.entries(filters).filter(([_, v]) => v !== undefined && v !== '')
     ).toString();
-    const res = await api.get(`/assets/export?${params}`, { responseType: 'blob' });
+    const res = await api.get(`${apiPrefix}/export?${params}`, { responseType: 'blob' });
     const url = URL.createObjectURL(new Blob([res.data]));
     const a = document.createElement('a');
-    a.href = url; a.download = 'assets-export.xlsx'; a.click();
+    a.href = url; a.download = exportFilename; a.click();
     URL.revokeObjectURL(url);
   }
 
@@ -61,13 +66,13 @@ export default function AssetList() {
 
   return (
     <Card
-      title={<Typography.Title level={4} style={{ margin: 0 }}>Asset Inventory</Typography.Title>}
+      title={<Typography.Title level={4} style={{ margin: 0 }}>{title}</Typography.Title>}
       extra={
         <Space>
           <Button icon={<ReloadOutlined />} onClick={load}>Refresh</Button>
           <Button icon={<DownloadOutlined />} onClick={onExport}>Export</Button>
-          {canWrite && <Link to="/assets/import"><Button icon={<UploadOutlined />}>Import</Button></Link>}
-          {canWrite && <Link to="/assets/new"><Button type="primary" icon={<PlusOutlined />}>Add Asset</Button></Link>}
+          {canWrite && <Link to={`${basePath}/import`}><Button icon={<UploadOutlined />}>Import</Button></Link>}
+          {canWrite && <Link to={`${basePath}/new`}><Button type="primary" icon={<PlusOutlined />}>Add Asset</Button></Link>}
         </Space>
       }
     >
@@ -109,7 +114,7 @@ export default function AssetList() {
         scroll={{ x: 1200 }}
         columns={[
           { title: 'VM Name', dataIndex: 'vm_name', fixed: 'left', width: 160,
-            render: (v, r) => <Link to={`/assets/${r.id}`}>{v}</Link> },
+            render: (v, r) => <Link to={`${basePath}/${r.id}`}>{v}</Link> },
           { title: 'Hostname', dataIndex: 'os_hostname', width: 180 },
           { title: 'IP', dataIndex: 'ip_address', width: 130 },
           { title: 'OS', dataIndex: 'os_type', width: 110 },
@@ -131,7 +136,7 @@ export default function AssetList() {
           {
             title: 'Actions', fixed: 'right', width: 120, render: (_, r) => (
               <Space>
-                <Button size="small" icon={<EditOutlined />} onClick={() => nav(`/assets/${r.id}`)} />
+                <Button size="small" icon={<EditOutlined />} onClick={() => nav(`${basePath}/${r.id}`)} />
                 {isAdmin && (
                   <Popconfirm title="Delete this asset?" onConfirm={() => onDelete(r.id)}>
                     <Button size="small" danger icon={<DeleteOutlined />} />

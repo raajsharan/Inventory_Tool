@@ -6,6 +6,7 @@ import {
   AppstoreAddOutlined, AppstoreOutlined, UnorderedListOutlined,
   UserOutlined, TeamOutlined, FileSearchOutlined,
   SettingOutlined, LogoutOutlined, HistoryOutlined, TagsOutlined,
+  GlobalOutlined, BarChartOutlined,
 } from '@ant-design/icons';
 import { useAuth } from '../../context/AuthContext.jsx';
 import api from '../../api/client';
@@ -35,6 +36,14 @@ export default function AppLayout() {
         canWrite && { key: '/assets/import', icon: <UploadOutlined />, label: <Link to="/assets/import">Import</Link> },
       ].filter(Boolean),
     },
+    {
+      key: 'beijing-assets', icon: <GlobalOutlined />, label: 'Beijing Assets',
+      children: [
+        { key: '/beijing-assets', label: <Link to="/beijing-assets">All Assets</Link> },
+        canWrite && { key: '/beijing-assets/new', icon: <PlusOutlined />, label: <Link to="/beijing-assets/new">Add Asset</Link> },
+        canWrite && { key: '/beijing-assets/import', icon: <UploadOutlined />, label: <Link to="/beijing-assets/import">Import</Link> },
+      ].filter(Boolean),
+    },
     ...customPages.map((p) => ({
       key: `custom-${p.slug}`,
       icon: <AppstoreOutlined />,
@@ -45,6 +54,7 @@ export default function AppLayout() {
         canWrite && { key: `/custom-pages/${p.slug}/import`, icon: <UploadOutlined />, label: <Link to={`/custom-pages/${p.slug}/import`}>Import</Link> },
       ].filter(Boolean),
     })),
+    { key: '/reports', icon: <BarChartOutlined />, label: <Link to="/reports">Report Builder</Link> },
     isAdmin && {
       key: 'admin', icon: <SettingOutlined />, label: 'Administration',
       children: [
@@ -71,7 +81,7 @@ export default function AppLayout() {
           theme="dark"
           mode="inline"
           selectedKeys={[loc.pathname]}
-          defaultOpenKeys={['assets', 'admin', ...customPages.map(p => `custom-${p.slug}`)]}
+          defaultOpenKeys={['assets', 'beijing-assets', 'admin', ...customPages.map(p => `custom-${p.slug}`)]}
           items={items}
         />
       </Sider>

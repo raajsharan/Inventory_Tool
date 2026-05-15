@@ -1,6 +1,12 @@
 const db = require('../config/db');
 const ApiError = require('../utils/ApiError');
 
+// Tables that store an `asset_tag` column we may need to scan for usage.
+const ALLOWED_TABLES = new Set(['assets', 'beijing_assets']);
+function safeTable(t) {
+  return ALLOWED_TABLES.has(t) ? t : 'assets';
+}
+
 async function list({ activeOnly = false } = {}) {
   const where = activeOnly ? 'WHERE is_active = TRUE' : '';
   const { rows } = await db.query(
@@ -94,20 +100,21 @@ async function validateDepartmentTag(department, assetTag) {
   }
 }
 
-async function nextAvailableTag(department) {
+async function nextAvailableTag(department, table = 'assets') {
   const range = await getByName(department);
   if (!range) throw new ApiError(400, 'Unknown department');
-  const used = await usedTagsForRange(range);
+  const used = await usedTagsForRange(range, table);
   for (let i = range.min_tag; i <= range.max_tag; i++) {
     if (!used.has(i)) return i;
   }
   return null;
 }
 
-async function usedTagsForRange(range) {
+async function usedTagsForRange(range, table = 'assets') {
+  const t = safeTable(table);
   const { rows } = await db.query(
     `SELECT DISTINCT NULLIF((regexp_match(asset_tag, '\\d+'))[1], '')::int AS n
-       FROM assets
+       FROM ${t}
       WHERE asset_tag ~ '\\d'`
   );
   const used = new Set();
@@ -117,10 +124,10 @@ async function usedTagsForRange(range) {
   return used;
 }
 
-async function tagStats(department) {
+async function tagStats(department, table = 'assets') {
   const range = await getByName(department);
   if (!range) throw new ApiError(400, 'Unknown department');
-  const used = await usedTagsForRange(range);
+  const used = await usedTagsForRange(range, table);
   const availableAll = [];
   let nextAvailable = null;
   for (let i = range.min_tag; i <= range.max_tag; i++) {
@@ -143,6 +150,30 @@ async function tagStats(department) {
   };
 }
 
+async function allTagStats(table = 'assets') {
+  const ranges = await list({ activeOnly: false });
+  const t = safeTable(table);
+  // One query: count used tags per range.
+  const { rows } = await db.query(
+    `SELECT NULLIF((regexp_match(asset_tag, '\\d+'))[1], '')::int AS n
+       FROM ${t}
+      WHERE asset_tag ~ '\\d'`
+  );
+  const all = rows.map(r => r.n).filter(n => n !== null);
+  return ranges.map(r => {
+    let used = 0;
+    for (const n of all) if (n >= r.min_tag && n <= r.max_tag) used++;
+    const total = r.max_tag - r.min_tag + 1;
+    return {
+      ...r,
+      total,
+      used,
+      available: Math.max(0, total - used),
+      usedPct: total > 0 ? Math.round((used / total) * 100) : 0,
+    };
+  });
+}
+
 module.exports = {
   list,
   getByName,
@@ -152,4 +183,5 @@ module.exports = {
   validateDepartmentTag,
   nextAvailableTag,
   tagStats,
+  allTagStats,
 };
