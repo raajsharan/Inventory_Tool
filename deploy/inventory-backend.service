@@ -1,0 +1,24 @@
+[Unit]
+Description=Infrastructure Inventory API (Node.js)
+After=network.target postgresql.service
+Wants=postgresql.service
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/opt/inventory/backend
+EnvironmentFile=/opt/inventory/backend/.env
+ExecStart=/usr/bin/node server.js
+Restart=on-failure
+RestartSec=5
+StandardOutput=append:/var/log/inventory/backend.log
+StandardError=append:/var/log/inventory/backend.err.log
+# Hardening
+NoNewPrivileges=true
+ProtectSystem=full
+ProtectHome=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

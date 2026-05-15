@@ -1,0 +1,37 @@
+import { Routes, Route, Navigate } from 'react-router-dom';
+import AppLayout from './components/Layout/AppLayout.jsx';
+import ProtectedRoute from './components/ProtectedRoute.jsx';
+import Login from './pages/Login.jsx';
+import Dashboard from './pages/Dashboard.jsx';
+import AssetList from './pages/Assets/AssetList.jsx';
+import AssetForm from './pages/Assets/AssetForm.jsx';
+import AssetImport from './pages/Assets/AssetImport.jsx';
+import CustomPageBuilder from './pages/CustomPages/CustomPageBuilder.jsx';
+import CustomPageView from './pages/CustomPages/CustomPageView.jsx';
+import Users from './pages/Admin/Users.jsx';
+import Dropdowns from './pages/Admin/Dropdowns.jsx';
+import AuditLogs from './pages/Admin/AuditLogs.jsx';
+import ImportHistory from './pages/Admin/ImportHistory.jsx';
+
+export default function App() {
+  return (
+    <Routes>
+      <Route path="/login" element={<Login />} />
+      <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
+        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/assets" element={<AssetList />} />
+        <Route path="/assets/new" element={<AssetForm mode="create" />} />
+        <Route path="/assets/:id" element={<AssetForm mode="edit" />} />
+        <Route path="/assets/import" element={<AssetImport />} />
+        <Route path="/custom-pages/new" element={<CustomPageBuilder />} />
+        <Route path="/custom-pages/:slug" element={<CustomPageView />} />
+        <Route path="/admin/users" element={<Users />} />
+        <Route path="/admin/dropdowns" element={<Dropdowns />} />
+        <Route path="/admin/audit" element={<AuditLogs />} />
+        <Route path="/admin/imports" element={<ImportHistory />} />
+        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      </Route>
+    </Routes>
+  );
+}
