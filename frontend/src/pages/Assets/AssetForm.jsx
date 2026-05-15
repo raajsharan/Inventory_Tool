@@ -7,6 +7,36 @@ import api from '../../api/client';
 
 const ipRe = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
 
+// Department → allowed asset-tag numeric range (inclusive). Ranges may overlap across teams.
+const DEPARTMENT_TAG_RANGES = [
+  { department: 'IT Team',                            min: 1,    max: 1000 },
+  { department: 'Platform Team',                      min: 1000, max: 2000 },
+  { department: 'Boston Team (QA)',                   min: 2000, max: 4000 },
+  { department: 'Toronto Team (QA)',                  min: 2000, max: 4000 },
+  { department: 'Bomgar Team',                        min: 2000, max: 4000 },
+  { department: 'Support & Service',                  min: 4000, max: 5000 },
+  { department: 'Lab Team',                           min: 5000, max: 6000 },
+  { department: "Joey's Team (Dev)",                  min: 6000, max: 7000 },
+  { department: 'Architecture Team',                  min: 7000, max: 8000 },
+  { department: 'PM, Support & NEA and other teams',  min: 8000, max: 8500 },
+  { department: 'Security Team',                      min: 8501, max: 9000 },
+  { department: 'POC Team',                           min: 9000, max: 9500 },
+];
+
+const DEPARTMENT_OPTIONS = DEPARTMENT_TAG_RANGES.map(d => ({
+  label: `${d.department} (${String(d.min).padStart(4, '0')}–${String(d.max).padStart(4, '0')})`,
+  value: d.department,
+}));
+
+function rangeFor(dept) {
+  return DEPARTMENT_TAG_RANGES.find(d => d.department === dept);
+}
+
+function extractTagNumber(tag) {
+  const m = String(tag || '').match(/\d+/);
+  return m ? parseInt(m[0], 10) : NaN;
+}
+
 export default function AssetForm({ mode }) {
   const { id } = useParams();
   const nav = useNavigate();
@@ -15,6 +45,7 @@ export default function AssetForm({ mode }) {
   const [dd, setDd] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [osType, setOsType] = useState();
+  const [department, setDepartment] = useState();
 
   useEffect(() => {
     api.get('/dropdowns').then(r => setDd(r.data.grouped || {}));
@@ -47,6 +78,7 @@ export default function AssetForm({ mode }) {
           idracEnabled: r.data.idrac_enabled,
         });
         setOsType(r.data.os_type);
+        setDepartment(r.data.department);
       });
     }
   }, [id, mode]); // eslint-disable-line
@@ -104,7 +136,18 @@ export default function AssetForm({ mode }) {
         <Divider orientation="left">Ownership</Divider>
         <Row gutter={16}>
           <Col xs={24} md={8}><Form.Item name="assignedUser" label="Assigned User"><Input /></Form.Item></Col>
-          <Col xs={24} md={8}><Form.Item name="department" label="Department"><Input /></Form.Item></Col>
+          <Col xs={24} md={8}>
+            <Form.Item name="department" label="Department">
+              <Select
+                allowClear
+                showSearch
+                placeholder="Select department"
+                options={DEPARTMENT_OPTIONS}
+                optionFilterProp="label"
+                onChange={(v) => { setDepartment(v); form.validateFields(['assetTag']).catch(() => {}); }}
+              />
+            </Form.Item>
+          </Col>
           <Col xs={24} md={24}><Form.Item name="businessPurpose" label="Business Purpose"><Input.TextArea rows={2} /></Form.Item></Col>
         </Row>
 
@@ -123,7 +166,35 @@ export default function AssetForm({ mode }) {
         <Divider orientation="left">Asset Tagging & Credentials</Divider>
         <Row gutter={16}>
           <Col xs={24} md={8}><Form.Item name="serialNumber" label="Serial Number"><Input /></Form.Item></Col>
-          <Col xs={24} md={8}><Form.Item name="assetTag" label="Asset Tag"><Input /></Form.Item></Col>
+          <Col xs={24} md={8}>
+            <Form.Item
+              name="assetTag"
+              label="Asset Tag"
+              dependencies={['department']}
+              extra={(() => {
+                const r = rangeFor(department);
+                return r ? `Allowed range for ${r.department}: ${String(r.min).padStart(4,'0')}–${String(r.max).padStart(4,'0')}` : 'Select a department to see the allowed range';
+              })()}
+              rules={[
+                ({ getFieldValue }) => ({
+                  validator(_, value) {
+                    if (!value) return Promise.resolve();
+                    const dept = getFieldValue('department');
+                    const r = rangeFor(dept);
+                    if (!r) return Promise.resolve();
+                    const n = extractTagNumber(value);
+                    if (Number.isNaN(n)) return Promise.reject(new Error('Asset tag must contain a number'));
+                    if (n < r.min || n > r.max) {
+                      return Promise.reject(new Error(`Tag ${n} is outside ${r.department}'s range ${r.min}–${r.max}`));
+                    }
+                    return Promise.resolve();
+                  },
+                }),
+              ]}
+            >
+              <Input />
+            </Form.Item>
+          </Col>
           <Col xs={24} md={8}><Form.Item name="assetUsername" label="Asset Username"><Input /></Form.Item></Col>
           <Col xs={24} md={8}>
             <Form.Item name="assetPassword" label="Asset Password" extra="Encrypted (AES-256-GCM) at rest">

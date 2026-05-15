@@ -2,6 +2,38 @@ const db = require('../config/db');
 const crypto = require('../utils/crypto');
 const ApiError = require('../utils/ApiError');
 
+// Department → allowed asset-tag numeric range (inclusive). Ranges may overlap across teams.
+const DEPARTMENT_TAG_RANGES = {
+  'IT Team':                            { min: 1,    max: 1000 },
+  'Platform Team':                      { min: 1000, max: 2000 },
+  'Boston Team (QA)':                   { min: 2000, max: 4000 },
+  'Toronto Team (QA)':                  { min: 2000, max: 4000 },
+  'Bomgar Team':                        { min: 2000, max: 4000 },
+  'Support & Service':                  { min: 4000, max: 5000 },
+  'Lab Team':                           { min: 5000, max: 6000 },
+  "Joey's Team (Dev)":                  { min: 6000, max: 7000 },
+  'Architecture Team':                  { min: 7000, max: 8000 },
+  'PM, Support & NEA and other teams':  { min: 8000, max: 8500 },
+  'Security Team':                      { min: 8501, max: 9000 },
+  'POC Team':                           { min: 9000, max: 9500 },
+};
+
+function validateDepartmentTag(department, assetTag) {
+  if (!department || !assetTag) return;
+  const range = DEPARTMENT_TAG_RANGES[department];
+  if (!range) return; // unknown/legacy department — skip
+  const m = String(assetTag).match(/\d+/);
+  const n = m ? parseInt(m[0], 10) : NaN;
+  if (Number.isNaN(n)) {
+    throw new ApiError(400, 'Invalid asset tag', { asset_tag: 'Asset tag must contain a number' });
+  }
+  if (n < range.min || n > range.max) {
+    throw new ApiError(400, 'Asset tag out of range', {
+      asset_tag: `Tag ${n} is outside ${department}'s range ${range.min}–${range.max}`,
+    });
+  }
+}
+
 const ASSET_COLUMNS = [
   'vm_name','os_hostname','ip_address','asset_type','os_type','os_version',
   'assigned_user','department','business_purpose','server_status','patching_type',
@@ -46,6 +78,7 @@ async function checkDuplicates({ vm_name, ip_address, asset_tag, excludeId }) {
 
 async function create(body, userId) {
   const row = mapBody(body);
+  validateDepartmentTag(row.department, row.asset_tag);
   await checkDuplicates({
     vm_name: row.vm_name,
     ip_address: row.ip_address,
@@ -66,6 +99,13 @@ async function create(body, userId) {
 async function update(id, body, userId) {
   const row = mapBody(body);
   if (!Object.keys(row).length) throw new ApiError(400, 'No fields to update');
+  if (row.department !== undefined || row.asset_tag !== undefined) {
+    const existing = await db.query(`SELECT department, asset_tag FROM assets WHERE id = $1`, [id]);
+    if (!existing.rows.length) throw new ApiError(404, 'Asset not found');
+    const effDept = row.department !== undefined ? row.department : existing.rows[0].department;
+    const effTag  = row.asset_tag  !== undefined ? row.asset_tag  : existing.rows[0].asset_tag;
+    validateDepartmentTag(effDept, effTag);
+  }
   await checkDuplicates({
     vm_name: row.vm_name,
     ip_address: row.ip_address,
@@ -136,4 +176,4 @@ function scrub(row) {
   return { ...rest, hasPassword: !!asset_password_encrypted };
 }
 
-module.exports = { create, update, remove, get, list, ASSET_COLUMNS };
+module.exports = { create, update, remove, get, list, ASSET_COLUMNS, DEPARTMENT_TAG_RANGES, validateDepartmentTag };
