@@ -60,6 +60,9 @@ async function create(body, userId) {
   }
 
   await deptSvc.validateDepartmentTag(row.department, row.asset_tag);
+  if (row.asset_tag && await deptSvc.isTagUsedAnywhere(row.asset_tag)) {
+    throw new ApiError(409, 'Duplicate values', { asset_tag: 'asset tag already used in another inventory' });
+  }
   await checkDuplicates({
     vm_name: row.vm_name,
     ip_address: row.ip_address,
@@ -86,6 +89,9 @@ async function update(id, body, userId) {
     const effDept = row.department !== undefined ? row.department : existing.rows[0].department;
     const effTag  = row.asset_tag  !== undefined ? row.asset_tag  : existing.rows[0].asset_tag;
     await deptSvc.validateDepartmentTag(effDept, effTag);
+  }
+  if (row.asset_tag && await deptSvc.isTagUsedAnywhere(row.asset_tag, { excludeTable: 'assets', excludeId: id })) {
+    throw new ApiError(409, 'Duplicate values', { asset_tag: 'asset tag already used in another inventory' });
   }
   await checkDuplicates({
     vm_name: row.vm_name,

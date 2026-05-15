@@ -7,10 +7,9 @@ async function list(req, res, next) {
   } catch (e) { next(e); }
 }
 
-async function stats(req, res, next) {
+async function stats(_req, res, next) {
   try {
-    const table = ['assets', 'beijing_assets'].includes(req.query.table) ? req.query.table : 'assets';
-    res.json({ items: await svc.allTagStats(table) });
+    res.json({ items: await svc.allTagStats() });
   } catch (e) { next(e); }
 }
 

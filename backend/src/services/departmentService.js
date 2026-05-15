@@ -2,7 +2,10 @@ const db = require('../config/db');
 const ApiError = require('../utils/ApiError');
 
 // Tables that store an `asset_tag` column we may need to scan for usage.
-const ALLOWED_TABLES = new Set(['assets', 'beijing_assets']);
+// Asset tags are a SINGLE GLOBAL POOL across these tables — used tags and
+// duplicate checks span every table in this list.
+const ALL_TABLES = ['assets', 'beijing_assets'];
+const ALLOWED_TABLES = new Set(ALL_TABLES);
 function safeTable(t) {
   return ALLOWED_TABLES.has(t) ? t : 'assets';
 }
@@ -100,34 +103,36 @@ async function validateDepartmentTag(department, assetTag) {
   }
 }
 
-async function nextAvailableTag(department, table = 'assets') {
+async function nextAvailableTag(department) {
   const range = await getByName(department);
   if (!range) throw new ApiError(400, 'Unknown department');
-  const used = await usedTagsForRange(range, table);
+  const used = await usedTagsForRange(range);
   for (let i = range.min_tag; i <= range.max_tag; i++) {
     if (!used.has(i)) return i;
   }
   return null;
 }
 
-async function usedTagsForRange(range, table = 'assets') {
-  const t = safeTable(table);
-  const { rows } = await db.query(
-    `SELECT DISTINCT NULLIF((regexp_match(asset_tag, '\\d+'))[1], '')::int AS n
-       FROM ${t}
-      WHERE asset_tag ~ '\\d'`
-  );
+// Pool tags across every inventory table — one global pool.
+async function usedTagsForRange(range) {
   const used = new Set();
-  for (const r of rows) {
-    if (r.n !== null && r.n >= range.min_tag && r.n <= range.max_tag) used.add(r.n);
+  for (const t of ALL_TABLES) {
+    const { rows } = await db.query(
+      `SELECT DISTINCT NULLIF((regexp_match(asset_tag, '\\d+'))[1], '')::int AS n
+         FROM ${t}
+        WHERE asset_tag ~ '\\d'`
+    );
+    for (const r of rows) {
+      if (r.n !== null && r.n >= range.min_tag && r.n <= range.max_tag) used.add(r.n);
+    }
   }
   return used;
 }
 
-async function tagStats(department, table = 'assets') {
+async function tagStats(department) {
   const range = await getByName(department);
   if (!range) throw new ApiError(400, 'Unknown department');
-  const used = await usedTagsForRange(range, table);
+  const used = await usedTagsForRange(range);
   const availableAll = [];
   let nextAvailable = null;
   for (let i = range.min_tag; i <= range.max_tag; i++) {
@@ -150,16 +155,18 @@ async function tagStats(department, table = 'assets') {
   };
 }
 
-async function allTagStats(table = 'assets') {
+async function allTagStats() {
   const ranges = await list({ activeOnly: false });
-  const t = safeTable(table);
-  // One query: count used tags per range.
-  const { rows } = await db.query(
-    `SELECT NULLIF((regexp_match(asset_tag, '\\d+'))[1], '')::int AS n
-       FROM ${t}
-      WHERE asset_tag ~ '\\d'`
-  );
-  const all = rows.map(r => r.n).filter(n => n !== null);
+  // Pull every used numeric tag from every inventory table, once.
+  const all = [];
+  for (const t of ALL_TABLES) {
+    const { rows } = await db.query(
+      `SELECT NULLIF((regexp_match(asset_tag, '\\d+'))[1], '')::int AS n
+         FROM ${t}
+        WHERE asset_tag ~ '\\d'`
+    );
+    for (const r of rows) if (r.n !== null) all.push(r.n);
+  }
   return ranges.map(r => {
     let used = 0;
     for (const n of all) if (n >= r.min_tag && n <= r.max_tag) used++;
@@ -174,6 +181,24 @@ async function allTagStats(table = 'assets') {
   });
 }
 
+// Check whether a tag is already used in ANY inventory table (optionally
+// excluding one row in one table — used for update operations).
+async function isTagUsedAnywhere(assetTag, { excludeTable, excludeId } = {}) {
+  if (!assetTag) return false;
+  for (const t of ALL_TABLES) {
+    const params = [assetTag];
+    let sql = `SELECT 1 FROM ${t} WHERE asset_tag = $1`;
+    if (excludeTable === t && excludeId) {
+      params.push(excludeId);
+      sql += ` AND id <> $${params.length}`;
+    }
+    sql += ' LIMIT 1';
+    const { rows } = await db.query(sql, params);
+    if (rows.length) return true;
+  }
+  return false;
+}
+
 module.exports = {
   list,
   getByName,
@@ -184,4 +209,6 @@ module.exports = {
   nextAvailableTag,
   tagStats,
   allTagStats,
+  isTagUsedAnywhere,
+  ALL_TABLES,
 };

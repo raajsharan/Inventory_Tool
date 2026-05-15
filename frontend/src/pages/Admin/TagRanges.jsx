@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import {
   Card, Table, Button, Modal, Form, Input, InputNumber, Space, Popconfirm, App, Typography,
-  Switch, Tag, Progress, Tabs,
+  Switch, Tag, Progress,
 } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, ReloadOutlined } from '@ant-design/icons';
 import api from '../../api/client';
@@ -13,19 +13,18 @@ export default function TagRanges() {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [form] = Form.useForm();
-  const [table, setTable] = useState('assets');
 
   async function load() {
     setLoading(true);
     try {
-      const { data } = await api.get('/departments/stats', { params: { table } });
+      const { data } = await api.get('/departments/stats');
       setRows(data.items || []);
     } catch (e) {
       message.error(e.response?.data?.error || 'Failed to load departments');
     } finally { setLoading(false); }
   }
 
-  useEffect(() => { load(); }, [table]); // eslint-disable-line
+  useEffect(() => { load(); }, []);
 
   function openCreate() {
     setEditing(null);
@@ -78,18 +77,8 @@ export default function TagRanges() {
     >
       <Typography.Paragraph type="secondary" style={{ marginTop: -8 }}>
         Departments listed here drive the asset form. Each department's asset tags must fall within its numeric range.
-        Usage counts are calculated against the selected inventory.
+        Asset tags are a single global pool — usage counts combine the Asset and Beijing inventories.
       </Typography.Paragraph>
-
-      <Tabs
-        size="small"
-        activeKey={table}
-        onChange={setTable}
-        items={[
-          { key: 'assets', label: 'Asset Inventory' },
-          { key: 'beijing_assets', label: 'Beijing Inventory' },
-        ]}
-      />
 
       <Table
         rowKey="id"
