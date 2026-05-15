@@ -1,6 +1,7 @@
 const ExcelJS = require('exceljs');
 const db = require('../config/db');
 const assetSvc = require('./assetService');
+const { DEPARTMENT_TAG_RANGES } = assetSvc;
 
 const COLUMNS = [
   { key: 'vm_name',                  header: 'VM Name *',                width: 22 },
@@ -65,6 +66,33 @@ async function buildTemplate() {
     `SELECT category, value FROM dropdown_master WHERE is_active = TRUE ORDER BY category, sort_order`
   );
   rows.forEach(r => ws2.addRow([r.category, r.value]));
+
+  const ws3 = wb.addWorksheet('Department Tag Ranges');
+  ws3.getColumn(1).width = 38;
+  ws3.getColumn(2).width = 22;
+  ws3.getColumn(3).width = 10;
+  ws3.getColumn(4).width = 10;
+  ws3.mergeCells('A1:D1');
+  ws3.getCell('A1').value =
+    "Asset Tag must contain a number within the selected Department's range. Ranges may overlap across teams.";
+  ws3.getCell('A1').font = { italic: true, color: { argb: 'FF555555' } };
+  ws3.addRow(['Department', 'Asset Tag Range', 'Min', 'Max']);
+  const hdrRow = ws3.getRow(2);
+  hdrRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+  hdrRow.alignment = { vertical: 'middle', horizontal: 'center' };
+  hdrRow.eachCell((cell) => {
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1F3A8A' } };
+    cell.border = { bottom: { style: 'thin', color: { argb: 'FF999999' } } };
+  });
+  hdrRow.height = 22;
+  for (const [dept, r] of Object.entries(DEPARTMENT_TAG_RANGES)) {
+    ws3.addRow([
+      dept,
+      `${String(r.min).padStart(4, '0')}–${String(r.max).padStart(4, '0')}`,
+      r.min,
+      r.max,
+    ]);
+  }
 
   return wb;
 }
