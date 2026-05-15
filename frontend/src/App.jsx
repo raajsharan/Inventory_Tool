@@ -9,6 +9,9 @@ import AssetImport from './pages/Assets/AssetImport.jsx';
 import BeijingAssetList from './pages/BeijingAssets/BeijingAssetList.jsx';
 import BeijingAssetForm from './pages/BeijingAssets/BeijingAssetForm.jsx';
 import BeijingAssetImport from './pages/BeijingAssets/BeijingAssetImport.jsx';
+import ExtAssetList from './pages/ExtAssets/ExtAssetList.jsx';
+import ExtAssetForm from './pages/ExtAssets/ExtAssetForm.jsx';
+import ExtAssetImport from './pages/ExtAssets/ExtAssetImport.jsx';
 import CustomPageBuilder from './pages/CustomPages/CustomPageBuilder.jsx';
 import CustomPageView from './pages/CustomPages/CustomPageView.jsx';
 import CustomPageImport from './pages/CustomPages/CustomPageImport.jsx';
@@ -39,6 +42,11 @@ export default function App() {
         <Route path="/beijing-assets/new" element={<BeijingAssetForm mode="create" />} />
         <Route path="/beijing-assets/:id" element={<BeijingAssetForm mode="edit" />} />
         <Route path="/beijing-assets/import" element={<BeijingAssetImport />} />
+
+        <Route path="/ext-assets" element={<ExtAssetList />} />
+        <Route path="/ext-assets/new" element={<ExtAssetForm mode="create" />} />
+        <Route path="/ext-assets/:id" element={<ExtAssetForm mode="edit" />} />
+        <Route path="/ext-assets/import" element={<ExtAssetImport />} />
 
         <Route path="/custom-pages/new" element={<CustomPageBuilder />} />
         <Route path="/custom-pages/:slug" element={<CustomPageView />} />

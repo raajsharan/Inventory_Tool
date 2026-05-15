@@ -4,6 +4,7 @@ router.use('/auth',         require('./authRoutes'));
 router.use('/dashboard',    require('./dashboardRoutes'));
 router.use('/assets',         require('./assetRoutes'));
 router.use('/beijing-assets', require('./beijingAssetRoutes'));
+router.use('/ext-assets',     require('./extAssetRoutes'));
 router.use('/dropdowns',      require('./dropdownRoutes'));
 router.use('/departments',    require('./departmentRoutes'));
 router.use('/users',          require('./userRoutes'));

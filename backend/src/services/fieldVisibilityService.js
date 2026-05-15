@@ -30,8 +30,9 @@ const ASSET_FIELDS = [
 ];
 
 const PAGES = {
-  assets:         { key: 'assets',         label: 'Asset Inventory',         fields: ASSET_FIELDS },
-  beijing_assets: { key: 'beijing_assets', label: 'Beijing Asset Inventory', fields: ASSET_FIELDS },
+  assets:         { key: 'assets',         label: 'Asset Inventory',           fields: ASSET_FIELDS },
+  beijing_assets: { key: 'beijing_assets', label: 'Beijing Asset Inventory',   fields: ASSET_FIELDS },
+  ext_assets:     { key: 'ext_assets',     label: 'Ext. Asset Inventory',      fields: ASSET_FIELDS },
 };
 
 function pages() {

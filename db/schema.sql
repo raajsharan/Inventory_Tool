@@ -164,6 +164,50 @@ CREATE INDEX IF NOT EXISTS idx_beijing_asset_tag    ON beijing_assets(asset_tag)
 CREATE INDEX IF NOT EXISTS idx_beijing_department   ON beijing_assets(department);
 
 -- ---------------------------------------------------------------------
+-- ext_assets
+--   Parallel "Extended" asset inventory. Same shape as assets, fully
+--   independent table. Shares the global asset_tag + ip_address pools
+--   via application-layer cross-table checks.
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS ext_assets (
+    id                       UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    vm_name                  VARCHAR(255) NOT NULL UNIQUE,
+    os_hostname              VARCHAR(255),
+    ip_address               VARCHAR(45)  NOT NULL UNIQUE,
+    asset_type               VARCHAR(128),
+    os_type                  VARCHAR(128),
+    os_version               VARCHAR(128),
+    assigned_user            VARCHAR(255),
+    department               VARCHAR(255),
+    business_purpose         TEXT,
+    server_status            VARCHAR(64),
+    patching_type            VARCHAR(64),
+    server_patch_type        VARCHAR(64),
+    patching_schedule        VARCHAR(128),
+    location                 VARCHAR(128),
+    eol_status               VARCHAR(64),
+    serial_number            VARCHAR(128),
+    ome_status               VARCHAR(64),
+    hosted_ip                VARCHAR(45),
+    asset_tag                VARCHAR(128) UNIQUE,
+    asset_username           VARCHAR(255),
+    asset_password_encrypted TEXT,
+    additional_remarks       TEXT,
+    manage_engine_installed  BOOLEAN NOT NULL DEFAULT FALSE,
+    tenable_installed        BOOLEAN NOT NULL DEFAULT FALSE,
+    idrac_enabled            BOOLEAN NOT NULL DEFAULT FALSE,
+    created_by               UUID REFERENCES users(id) ON DELETE SET NULL,
+    updated_by               UUID REFERENCES users(id) ON DELETE SET NULL,
+    created_at               TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at               TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_ext_vm_name      ON ext_assets(vm_name);
+CREATE INDEX IF NOT EXISTS idx_ext_ip           ON ext_assets(ip_address);
+CREATE INDEX IF NOT EXISTS idx_ext_asset_tag    ON ext_assets(asset_tag);
+CREATE INDEX IF NOT EXISTS idx_ext_department   ON ext_assets(department);
+
+-- ---------------------------------------------------------------------
 -- custom_pages
 -- ---------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS custom_pages (
@@ -281,7 +325,7 @@ DECLARE
     t TEXT;
 BEGIN
     FOR t IN
-        SELECT unnest(ARRAY['users','dropdown_master','assets','beijing_assets','custom_pages','custom_page_records','department_tag_ranges','page_field_visibility'])
+        SELECT unnest(ARRAY['users','dropdown_master','assets','beijing_assets','ext_assets','custom_pages','custom_page_records','department_tag_ranges','page_field_visibility'])
     LOOP
         EXECUTE format(
             'DROP TRIGGER IF EXISTS trg_%I_updated ON %I;
