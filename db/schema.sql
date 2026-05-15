@@ -253,6 +253,19 @@ CREATE INDEX IF NOT EXISTS idx_audit_entity  ON audit_logs(entity_type, entity_i
 CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_logs(created_at DESC);
 
 -- ---------------------------------------------------------------------
+-- page_field_visibility
+--   Stores per-page hidden field keys, so admins can hide fields from
+--   the built-in pages (Assets, Beijing Assets, ...). Default visibility
+--   is "everything shown" — only hidden keys are persisted.
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS page_field_visibility (
+    page_key   VARCHAR(64) PRIMARY KEY,
+    hidden     JSONB NOT NULL DEFAULT '[]'::jsonb,
+    updated_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- ---------------------------------------------------------------------
 -- updated_at trigger
 -- ---------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION set_updated_at()
@@ -268,7 +281,7 @@ DECLARE
     t TEXT;
 BEGIN
     FOR t IN
-        SELECT unnest(ARRAY['users','dropdown_master','assets','beijing_assets','custom_pages','custom_page_records','department_tag_ranges'])
+        SELECT unnest(ARRAY['users','dropdown_master','assets','beijing_assets','custom_pages','custom_page_records','department_tag_ranges','page_field_visibility'])
     LOOP
         EXECUTE format(
             'DROP TRIGGER IF EXISTS trg_%I_updated ON %I;

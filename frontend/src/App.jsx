@@ -18,6 +18,7 @@ import Users from './pages/Admin/Users.jsx';
 import Dropdowns from './pages/Admin/Dropdowns.jsx';
 import TagRanges from './pages/Admin/TagRanges.jsx';
 import AdminCustomPages from './pages/Admin/CustomPages.jsx';
+import FieldVisibility from './pages/Admin/FieldVisibility.jsx';
 import AuditLogs from './pages/Admin/AuditLogs.jsx';
 import ImportHistory from './pages/Admin/ImportHistory.jsx';
 
@@ -51,6 +52,7 @@ export default function App() {
         <Route path="/admin/dropdowns" element={<Dropdowns />} />
         <Route path="/admin/tag-ranges" element={<TagRanges />} />
         <Route path="/admin/custom-pages" element={<AdminCustomPages />} />
+        <Route path="/admin/field-visibility" element={<FieldVisibility />} />
         <Route path="/admin/audit" element={<AuditLogs />} />
         <Route path="/admin/imports" element={<ImportHistory />} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />

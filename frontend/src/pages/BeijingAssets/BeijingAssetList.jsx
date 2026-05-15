@@ -7,6 +7,7 @@ export default function BeijingAssetList() {
       basePath="/beijing-assets"
       title="Beijing Asset Inventory"
       exportFilename="beijing-assets-export.xlsx"
+      pageKey="beijing_assets"
     />
   );
 }

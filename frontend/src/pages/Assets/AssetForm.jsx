@@ -15,7 +15,10 @@ function extractTagNumber(tag) {
   return m ? parseInt(m[0], 10) : NaN;
 }
 
-export default function AssetForm({ mode, apiPrefix = '/assets', listPath = '/assets', entityLabel = 'Asset' }) {
+// Map snake_case server field keys to camelCase Form.Item names.
+function camel(s) { return s.replace(/_([a-z])/g, (_, c) => c.toUpperCase()); }
+
+export default function AssetForm({ mode, apiPrefix = '/assets', listPath = '/assets', entityLabel = 'Asset', pageKey = 'assets' }) {
   const { id } = useParams();
   const nav = useNavigate();
   const { message } = App.useApp();
@@ -30,6 +33,8 @@ export default function AssetForm({ mode, apiPrefix = '/assets', listPath = '/as
   const [autoTagInfo, setAutoTagInfo] = useState(null);
   const [autoTagLoading, setAutoTagLoading] = useState(false);
   const [manualOverride, setManualOverride] = useState(false);
+  const [hiddenSet, setHiddenSet] = useState(new Set());
+  const isHidden = (snakeKey) => hiddenSet.has(snakeKey);
 
   const departmentOptions = useMemo(
     () => departments.map(d => ({
@@ -45,6 +50,9 @@ export default function AssetForm({ mode, apiPrefix = '/assets', listPath = '/as
     api.get('/dropdowns').then(r => setDd(r.data.grouped || {}));
     api.get('/departments', { params: { activeOnly: 1 } })
       .then(r => setDepartments(r.data.items || []))
+      .catch(() => {});
+    api.get(`/field-visibility/${pageKey}`)
+      .then(r => setHiddenSet(new Set(r.data.hidden || [])))
       .catch(() => {});
 
     if (mode === 'edit' && id) {
@@ -109,8 +117,10 @@ export default function AssetForm({ mode, apiPrefix = '/assets', listPath = '/as
     return () => { cancelled = true; };
   }, [department, manualOverride, mode]); // eslint-disable-line
 
+  // If a parent is provided (e.g. OS Type for OS Version), only return rows
+  // whose parent_value matches. Otherwise return all rows for the category.
   const opts = (cat, parent) => (dd[cat] || [])
-    .filter(d => !parent || !d.parent_value || d.parent_value === parent)
+    .filter(d => parent === undefined ? true : d.parent_value === parent)
     .map(d => ({ label: d.value, value: d.value }));
 
   async function onFinish(values) {
@@ -148,26 +158,58 @@ export default function AssetForm({ mode, apiPrefix = '/assets', listPath = '/as
         initialValues={{ manageEngineInstalled: false, tenableInstalled: false, idracEnabled: false }}>
         <Divider orientation="left">Identity</Divider>
         <Row gutter={16}>
-          <Col xs={24} md={8}><Form.Item name="vmName" label="VM Name" rules={[{ required: true }]}><Input /></Form.Item></Col>
-          <Col xs={24} md={8}><Form.Item name="osHostname" label="OS Hostname"><Input /></Form.Item></Col>
-          <Col xs={24} md={8}><Form.Item name="ipAddress" label="IP Address" rules={[{ required: true }, { pattern: ipRe, message: 'Invalid IP address' }]}><Input /></Form.Item></Col>
-          <Col xs={24} md={8}><Form.Item name="assetType" label="Asset Type"><Input placeholder="e.g. Virtual Server" /></Form.Item></Col>
-          <Col xs={24} md={8}>
+          {!isHidden('vm_name') && <Col xs={24} md={8}><Form.Item name="vmName" label="VM Name" rules={[{ required: true }]}><Input /></Form.Item></Col>}
+          {!isHidden('os_hostname') && <Col xs={24} md={8}><Form.Item name="osHostname" label="OS Hostname"><Input /></Form.Item></Col>}
+          {!isHidden('ip_address') && <Col xs={24} md={8}>
+            <Form.Item
+              name="ipAddress"
+              label="IP Address"
+              validateDebounce={400}
+              rules={[
+                { required: true },
+                { pattern: ipRe, message: 'Invalid IP address' },
+                {
+                  validator: async (_, value) => {
+                    if (!value || !ipRe.test(value)) return;
+                    try {
+                      const params = { ip: value };
+                      if (mode === 'edit' && id) {
+                        params.excludeTable = apiPrefix.includes('beijing') ? 'beijing_assets' : 'assets';
+                        params.excludeId = id;
+                      }
+                      const { data } = await api.get(`${apiPrefix}/check-ip`, { params });
+                      if (data.used) {
+                        const where = data.conflictTable === 'beijing_assets' ? 'Beijing Inventory' : 'Asset Inventory';
+                        throw new Error(`IP already exists in ${where}`);
+                      }
+                    } catch (e) {
+                      if (e.message?.startsWith('IP already')) throw e;
+                      // network errors fall through — server-side check is the final gate
+                    }
+                  },
+                },
+              ]}
+            >
+              <Input />
+            </Form.Item>
+          </Col>}
+          {!isHidden('asset_type') && <Col xs={24} md={8}><Form.Item name="assetType" label="Asset Type"><Input placeholder="e.g. Virtual Server" /></Form.Item></Col>}
+          {!isHidden('os_type') && <Col xs={24} md={8}>
             <Form.Item name="osType" label="OS Type">
               <Select allowClear options={opts('os_type')} onChange={(v) => { setOsType(v); form.setFieldValue('osVersion', undefined); }} />
             </Form.Item>
-          </Col>
-          <Col xs={24} md={8}>
+          </Col>}
+          {!isHidden('os_version') && <Col xs={24} md={8}>
             <Form.Item name="osVersion" label="OS Version">
               <Select allowClear options={opts('os_version', osType)} />
             </Form.Item>
-          </Col>
+          </Col>}
         </Row>
 
         <Divider orientation="left">Ownership</Divider>
         <Row gutter={16}>
-          <Col xs={24} md={8}><Form.Item name="assignedUser" label="Assigned User"><Input /></Form.Item></Col>
-          <Col xs={24} md={8}>
+          {!isHidden('assigned_user') && <Col xs={24} md={8}><Form.Item name="assignedUser" label="Assigned User"><Input /></Form.Item></Col>}
+          {!isHidden('department') && <Col xs={24} md={8}>
             <Form.Item name="department" label="Department">
               <Select
                 allowClear
@@ -182,31 +224,31 @@ export default function AssetForm({ mode, apiPrefix = '/assets', listPath = '/as
                 }}
               />
             </Form.Item>
-          </Col>
-          <Col xs={24} md={24}><Form.Item name="businessPurpose" label="Business Purpose"><Input.TextArea rows={2} /></Form.Item></Col>
+          </Col>}
+          {!isHidden('business_purpose') && <Col xs={24} md={24}><Form.Item name="businessPurpose" label="Business Purpose"><Input.TextArea rows={2} /></Form.Item></Col>}
         </Row>
 
         <Divider orientation="left">Operations</Divider>
         <Row gutter={16}>
-          <Col xs={24} md={6}><Form.Item name="serverStatus" label="Server Status"><Select allowClear options={opts('server_status')} /></Form.Item></Col>
-          <Col xs={24} md={6}><Form.Item name="patchingType" label="Patching Type"><Select allowClear options={opts('patching_type')} /></Form.Item></Col>
-          <Col xs={24} md={6}><Form.Item name="serverPatchType" label="Server Patch Type"><Select allowClear options={opts('server_patch_type')} /></Form.Item></Col>
-          <Col xs={24} md={6}><Form.Item name="patchingSchedule" label="Patching Schedule"><Select allowClear options={opts('patching_schedule')} /></Form.Item></Col>
-          <Col xs={24} md={6}><Form.Item name="location" label="Location"><Select allowClear options={opts('location')} /></Form.Item></Col>
-          <Col xs={24} md={6}><Form.Item name="eolStatus" label="EOL Status"><Select allowClear options={opts('eol_status')} /></Form.Item></Col>
-          <Col xs={24} md={6}><Form.Item name="omeStatus" label="OME Status"><Input /></Form.Item></Col>
-          <Col xs={24} md={6}><Form.Item name="hostedIp" label="Hosted IP"><Input /></Form.Item></Col>
+          {!isHidden('server_status') && <Col xs={24} md={6}><Form.Item name="serverStatus" label="Server Status"><Select allowClear options={opts('server_status')} /></Form.Item></Col>}
+          {!isHidden('patching_type') && <Col xs={24} md={6}><Form.Item name="patchingType" label="Patching Type"><Select allowClear options={opts('patching_type')} /></Form.Item></Col>}
+          {!isHidden('server_patch_type') && <Col xs={24} md={6}><Form.Item name="serverPatchType" label="Server Patch Type"><Select allowClear options={opts('server_patch_type')} /></Form.Item></Col>}
+          {!isHidden('patching_schedule') && <Col xs={24} md={6}><Form.Item name="patchingSchedule" label="Patching Schedule"><Select allowClear options={opts('patching_schedule')} /></Form.Item></Col>}
+          {!isHidden('location') && <Col xs={24} md={6}><Form.Item name="location" label="Location"><Select allowClear options={opts('location')} /></Form.Item></Col>}
+          {!isHidden('eol_status') && <Col xs={24} md={6}><Form.Item name="eolStatus" label="EOL Status"><Select allowClear options={opts('eol_status')} /></Form.Item></Col>}
+          {!isHidden('ome_status') && <Col xs={24} md={6}><Form.Item name="omeStatus" label="OME Status"><Input /></Form.Item></Col>}
+          {!isHidden('hosted_ip') && <Col xs={24} md={6}><Form.Item name="hostedIp" label="Hosted IP"><Input /></Form.Item></Col>}
         </Row>
 
         <Divider orientation="left">Asset Tagging & Credentials</Divider>
         <Row gutter={16}>
-          <Col xs={24} md={8}><Form.Item name="serialNumber" label="Serial Number"><Input /></Form.Item></Col>
-          <Col xs={24} md={8}><Form.Item name="assetUsername" label="Asset Username"><Input /></Form.Item></Col>
-          <Col xs={24} md={8}>
+          {!isHidden('serial_number') && <Col xs={24} md={8}><Form.Item name="serialNumber" label="Serial Number"><Input /></Form.Item></Col>}
+          {!isHidden('asset_username') && <Col xs={24} md={8}><Form.Item name="assetUsername" label="Asset Username"><Input /></Form.Item></Col>}
+          {!isHidden('asset_password') && <Col xs={24} md={8}>
             <Form.Item name="assetPassword" label="Asset Password" extra="Encrypted (AES-256-GCM) at rest">
               <Input.Password placeholder={mode === 'edit' ? 'Leave blank to keep existing' : ''} autoComplete="new-password" />
             </Form.Item>
-          </Col>
+          </Col>}
 
           <Col xs={24}>
             <Form.Item
@@ -263,19 +305,19 @@ export default function AssetForm({ mode, apiPrefix = '/assets', listPath = '/as
             )}
           </Col>
 
-          <Col xs={24}><Form.Item name="additionalRemarks" label="Additional Remarks"><Input.TextArea rows={2} /></Form.Item></Col>
+          {!isHidden('additional_remarks') && <Col xs={24}><Form.Item name="additionalRemarks" label="Additional Remarks"><Input.TextArea rows={2} /></Form.Item></Col>}
         </Row>
 
         <Divider orientation="left">Tools</Divider>
         <Row gutter={16}>
-          <Col xs={12} md={6}><Form.Item name="manageEngineInstalled" label="ManageEngine Installed" valuePropName="checked"><Switch /></Form.Item></Col>
-          <Col xs={12} md={6}><Form.Item name="tenableInstalled" label="Tenable Installed" valuePropName="checked"><Switch /></Form.Item></Col>
-          <Col xs={12} md={6}><Form.Item name="idracEnabled" label="iDRAC Enabled" valuePropName="checked"><Switch /></Form.Item></Col>
+          {!isHidden('manage_engine_installed') && <Col xs={12} md={6}><Form.Item name="manageEngineInstalled" label="ManageEngine Installed" valuePropName="checked"><Switch /></Form.Item></Col>}
+          {!isHidden('tenable_installed') && <Col xs={12} md={6}><Form.Item name="tenableInstalled" label="Tenable Installed" valuePropName="checked"><Switch /></Form.Item></Col>}
+          {!isHidden('idrac_enabled') && <Col xs={12} md={6}><Form.Item name="idracEnabled" label="iDRAC Enabled" valuePropName="checked"><Switch /></Form.Item></Col>}
         </Row>
 
         <Space>
-          <Button type="primary" htmlType="submit" loading={submitting}>{mode === 'create' ? 'Create Asset' : 'Save Changes'}</Button>
-          <Button onClick={() => nav('/assets')}>Cancel</Button>
+          <Button type="primary" htmlType="submit" loading={submitting}>{mode === 'create' ? `Create ${entityLabel}` : 'Save Changes'}</Button>
+          <Button onClick={() => nav(listPath)}>Cancel</Button>
         </Space>
       </Form>
     </Card>

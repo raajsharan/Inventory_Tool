@@ -63,6 +63,9 @@ async function create(body, userId) {
   if (row.asset_tag && await deptSvc.isTagUsedAnywhere(row.asset_tag)) {
     throw new ApiError(409, 'Duplicate values', { asset_tag: 'asset tag already used in another inventory' });
   }
+  if (row.ip_address && await deptSvc.isIpUsedAnywhere(row.ip_address)) {
+    throw new ApiError(409, 'Duplicate values', { ip_address: 'IP address already used in another inventory' });
+  }
   await checkDuplicates({
     vm_name: row.vm_name,
     ip_address: row.ip_address,
@@ -92,6 +95,9 @@ async function update(id, body, userId) {
   }
   if (row.asset_tag && await deptSvc.isTagUsedAnywhere(row.asset_tag, { excludeTable: 'assets', excludeId: id })) {
     throw new ApiError(409, 'Duplicate values', { asset_tag: 'asset tag already used in another inventory' });
+  }
+  if (row.ip_address && await deptSvc.isIpUsedAnywhere(row.ip_address, { excludeTable: 'assets', excludeId: id })) {
+    throw new ApiError(409, 'Duplicate values', { ip_address: 'IP address already used in another inventory' });
   }
   await checkDuplicates({
     vm_name: row.vm_name,

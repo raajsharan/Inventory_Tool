@@ -7,6 +7,7 @@ export default function BeijingAssetForm({ mode }) {
       apiPrefix="/beijing-assets"
       listPath="/beijing-assets"
       entityLabel="Beijing Asset"
+      pageKey="beijing_assets"
     />
   );
 }

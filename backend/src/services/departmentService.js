@@ -181,22 +181,31 @@ async function allTagStats() {
   });
 }
 
-// Check whether a tag is already used in ANY inventory table (optionally
-// excluding one row in one table — used for update operations).
-async function isTagUsedAnywhere(assetTag, { excludeTable, excludeId } = {}) {
-  if (!assetTag) return false;
+// Check whether a value is already used in ANY inventory table for the given
+// column (optionally excluding one row in one table). Returns the table name
+// where the conflict was found, or null.
+async function isValueUsedAnywhere(column, value, { excludeTable, excludeId } = {}) {
+  if (!value) return null;
   for (const t of ALL_TABLES) {
-    const params = [assetTag];
-    let sql = `SELECT 1 FROM ${t} WHERE asset_tag = $1`;
+    const params = [value];
+    let sql = `SELECT 1 FROM ${t} WHERE ${column} = $1`;
     if (excludeTable === t && excludeId) {
       params.push(excludeId);
       sql += ` AND id <> $${params.length}`;
     }
     sql += ' LIMIT 1';
     const { rows } = await db.query(sql, params);
-    if (rows.length) return true;
+    if (rows.length) return t;
   }
-  return false;
+  return null;
+}
+
+async function isTagUsedAnywhere(assetTag, opts) {
+  return !!(await isValueUsedAnywhere('asset_tag', assetTag, opts));
+}
+
+async function isIpUsedAnywhere(ip, opts) {
+  return await isValueUsedAnywhere('ip_address', ip, opts);
 }
 
 module.exports = {
@@ -210,5 +219,7 @@ module.exports = {
   tagStats,
   allTagStats,
   isTagUsedAnywhere,
+  isIpUsedAnywhere,
+  isValueUsedAnywhere,
   ALL_TABLES,
 };

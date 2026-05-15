@@ -52,4 +52,17 @@ async function tagStats(req, res, next) {
   } catch (e) { next(e); }
 }
 
-module.exports = { list, get, create, update, remove, tagStats };
+async function checkIp(req, res, next) {
+  try {
+    const dept = require('../services/departmentService');
+    const ip = String(req.query.ip || '').trim();
+    if (!ip) return res.json({ used: false, conflictTable: null });
+    const conflict = await dept.isIpUsedAnywhere(ip, {
+      excludeTable: req.query.excludeTable || undefined,
+      excludeId: req.query.excludeId || undefined,
+    });
+    res.json({ used: !!conflict, conflictTable: conflict });
+  } catch (e) { next(e); }
+}
+
+module.exports = { list, get, create, update, remove, tagStats, checkIp };

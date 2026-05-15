@@ -13,6 +13,7 @@ const writeRoles = ['admin', 'asset_manager'];
 router.get('/template', authenticate, authorize(...writeRoles), c.downloadTemplate);
 router.get('/export',   authenticate, c.exportAssets);
 router.get('/tag-stats', authenticate, c.tagStats);
+router.get('/check-ip', authenticate, c.checkIp);
 
 router.post(
   '/import',

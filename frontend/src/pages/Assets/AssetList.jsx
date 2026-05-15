@@ -15,6 +15,7 @@ export default function AssetList({
   basePath = '/assets',
   title = 'Asset Inventory',
   exportFilename = 'assets-export.xlsx',
+  pageKey = 'assets',
 }) {
   const { user } = useAuth();
   const { message } = App.useApp();
@@ -25,6 +26,8 @@ export default function AssetList({
   const [filters, setFilters] = useState({ search: '', osType: undefined, serverStatus: undefined, location: undefined, eolStatus: undefined });
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
+  const [hiddenSet, setHiddenSet] = useState(new Set());
+  const isHidden = (k) => hiddenSet.has(k);
 
   const canWrite = ['admin','asset_manager'].includes(user?.role);
   const isAdmin = user?.role === 'admin';
@@ -41,7 +44,10 @@ export default function AssetList({
   useEffect(() => { load(); }, [page, pageSize, filters.osType, filters.serverStatus, filters.location, filters.eolStatus]); // eslint-disable-line
   useEffect(() => {
     api.get('/dropdowns').then(r => setDropdowns(r.data.grouped || {}));
-  }, []);
+    api.get(`/field-visibility/${pageKey}`)
+      .then(r => setHiddenSet(new Set(r.data.hidden || [])))
+      .catch(() => {});
+  }, [pageKey]);
 
   function onSearch() { setPage(1); load(); }
 
@@ -113,28 +119,30 @@ export default function AssetList({
         }}
         scroll={{ x: 1200 }}
         columns={[
-          { title: 'VM Name', dataIndex: 'vm_name', fixed: 'left', width: 160,
+          { title: 'VM Name', dataIndex: 'vm_name', fixed: 'left', width: 160, key: 'vm_name',
             render: (v, r) => <Link to={`${basePath}/${r.id}`}>{v}</Link> },
-          { title: 'Hostname', dataIndex: 'os_hostname', width: 180 },
-          { title: 'IP', dataIndex: 'ip_address', width: 130 },
-          { title: 'OS', dataIndex: 'os_type', width: 110 },
-          { title: 'OS Version', dataIndex: 'os_version', width: 150 },
-          { title: 'Status', dataIndex: 'server_status', width: 120,
+          !isHidden('os_hostname') && { title: 'Hostname', dataIndex: 'os_hostname', width: 180, key: 'os_hostname' },
+          { title: 'IP', dataIndex: 'ip_address', width: 130, key: 'ip_address' },
+          !isHidden('os_type') && { title: 'OS', dataIndex: 'os_type', width: 110, key: 'os_type' },
+          !isHidden('os_version') && { title: 'OS Version', dataIndex: 'os_version', width: 150, key: 'os_version' },
+          !isHidden('server_status') && { title: 'Status', dataIndex: 'server_status', width: 120, key: 'server_status',
             render: v => v && <Tag color={v === 'Active' ? 'green' : v === 'Decommissioned' ? 'red' : 'orange'}>{v}</Tag> },
-          { title: 'Location', dataIndex: 'location', width: 140 },
-          { title: 'EOL', dataIndex: 'eol_status', width: 130,
+          !isHidden('location') && { title: 'Location', dataIndex: 'location', width: 140, key: 'location' },
+          !isHidden('eol_status') && { title: 'EOL', dataIndex: 'eol_status', width: 130, key: 'eol_status',
             render: v => v && <Tag color={v === 'Supported' ? 'green' : v === 'EOL' ? 'red' : 'orange'}>{v}</Tag> },
-          { title: 'Assigned User', dataIndex: 'assigned_user', width: 150 },
-          { title: 'Department', dataIndex: 'department', width: 140 },
-          { title: 'Tools', width: 130, render: (_, r) => (
-            <Space size={4}>
-              {r.manage_engine_installed && <Tag color="blue">ME</Tag>}
-              {r.tenable_installed && <Tag color="purple">Tenable</Tag>}
-              {r.idrac_enabled && <Tag color="cyan">iDRAC</Tag>}
-            </Space>
-          )},
+          !isHidden('assigned_user') && { title: 'Assigned User', dataIndex: 'assigned_user', width: 150, key: 'assigned_user' },
+          !isHidden('department') && { title: 'Department', dataIndex: 'department', width: 140, key: 'department' },
+          (!isHidden('manage_engine_installed') || !isHidden('tenable_installed') || !isHidden('idrac_enabled')) && {
+            title: 'Tools', width: 130, key: '__tools__', render: (_, r) => (
+              <Space size={4}>
+                {!isHidden('manage_engine_installed') && r.manage_engine_installed && <Tag color="blue">ME</Tag>}
+                {!isHidden('tenable_installed') && r.tenable_installed && <Tag color="purple">Tenable</Tag>}
+                {!isHidden('idrac_enabled') && r.idrac_enabled && <Tag color="cyan">iDRAC</Tag>}
+              </Space>
+            )
+          },
           {
-            title: 'Actions', fixed: 'right', width: 120, render: (_, r) => (
+            title: 'Actions', fixed: 'right', width: 120, key: '__actions__', render: (_, r) => (
               <Space>
                 <Button size="small" icon={<EditOutlined />} onClick={() => nav(`${basePath}/${r.id}`)} />
                 {isAdmin && (
@@ -145,7 +153,7 @@ export default function AssetList({
               </Space>
             )
           },
-        ]}
+        ].filter(Boolean)}
       />
     </Card>
   );

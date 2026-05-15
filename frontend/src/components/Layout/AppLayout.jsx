@@ -6,7 +6,7 @@ import {
   AppstoreAddOutlined, AppstoreOutlined, UnorderedListOutlined,
   UserOutlined, TeamOutlined, FileSearchOutlined,
   SettingOutlined, LogoutOutlined, HistoryOutlined, TagsOutlined,
-  GlobalOutlined, BarChartOutlined,
+  GlobalOutlined, BarChartOutlined, EyeOutlined,
 } from '@ant-design/icons';
 import { useAuth } from '../../context/AuthContext.jsx';
 import api from '../../api/client';
@@ -62,6 +62,7 @@ export default function AppLayout() {
         { key: '/admin/dropdowns', icon: <SettingOutlined />, label: <Link to="/admin/dropdowns">Dropdowns</Link> },
         { key: '/admin/tag-ranges', icon: <TagsOutlined />, label: <Link to="/admin/tag-ranges">Tag Ranges</Link> },
         { key: '/admin/custom-pages', icon: <AppstoreAddOutlined />, label: <Link to="/admin/custom-pages">Custom Pages</Link> },
+        { key: '/admin/field-visibility', icon: <EyeOutlined />, label: <Link to="/admin/field-visibility">Field Customization</Link> },
         { key: '/admin/imports', icon: <HistoryOutlined />, label: <Link to="/admin/imports">Import History</Link> },
         { key: '/admin/audit', icon: <FileSearchOutlined />, label: <Link to="/admin/audit">Audit Log</Link> },
       ],

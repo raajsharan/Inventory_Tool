@@ -11,5 +11,6 @@ router.use('/custom-pages',   require('./customPageRoutes'));
 router.use('/audit',          require('./auditRoutes'));
 router.use('/imports',        require('./importRoutes'));
 router.use('/reports',        require('./reportRoutes'));
+router.use('/field-visibility', require('./fieldVisibilityRoutes'));
 
 module.exports = router;
