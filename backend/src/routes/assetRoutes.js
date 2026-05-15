@@ -14,6 +14,7 @@ const writeRoles = ['admin', 'asset_manager'];
 
 router.get('/template', authenticate, authorize(...writeRoles), importCtrl.downloadTemplate);
 router.get('/export',   authenticate, importCtrl.exportAssets);
+router.get('/tag-stats', authenticate, assetCtrl.tagStats);
 
 router.post(
   '/import',

@@ -171,9 +171,43 @@ async function list({ search, osType, serverStatus, location, eolStatus, page = 
   };
 }
 
+async function tagStats(department) {
+  const range = DEPARTMENT_TAG_RANGES[department];
+  if (!range) throw new ApiError(400, 'Unknown department');
+  const { rows } = await db.query(
+    `SELECT DISTINCT NULLIF((regexp_match(asset_tag, '\\d+'))[1], '')::int AS n
+       FROM assets
+      WHERE asset_tag ~ '\\d'`
+  );
+  const used = new Set();
+  for (const r of rows) {
+    if (r.n !== null && r.n >= range.min && r.n <= range.max) used.add(r.n);
+  }
+  const availableAll = [];
+  let nextAvailable = null;
+  for (let i = range.min; i <= range.max; i++) {
+    if (!used.has(i)) {
+      availableAll.push(i);
+      if (nextAvailable === null) nextAvailable = i;
+    }
+  }
+  const total = range.max - range.min + 1;
+  return {
+    department,
+    min: range.min,
+    max: range.max,
+    total,
+    used: used.size,
+    available: availableAll.length,
+    nextAvailable,
+    availableSample: availableAll.slice(0, 20),
+    availableAll: availableAll.slice(0, 5000),
+  };
+}
+
 function scrub(row) {
   const { asset_password_encrypted, ...rest } = row;
   return { ...rest, hasPassword: !!asset_password_encrypted };
 }
 
-module.exports = { create, update, remove, get, list, ASSET_COLUMNS, DEPARTMENT_TAG_RANGES, validateDepartmentTag };
+module.exports = { create, update, remove, get, list, ASSET_COLUMNS, DEPARTMENT_TAG_RANGES, validateDepartmentTag, tagStats };

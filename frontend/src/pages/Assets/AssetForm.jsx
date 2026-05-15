@@ -4,6 +4,7 @@ import {
   Card, Form, Input, Select, Switch, Row, Col, Button, Space, App, Typography, Divider,
 } from 'antd';
 import api from '../../api/client';
+import AssetTagPicker from './AssetTagPicker.jsx';
 
 const ipRe = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
 
@@ -166,15 +167,17 @@ export default function AssetForm({ mode }) {
         <Divider orientation="left">Asset Tagging & Credentials</Divider>
         <Row gutter={16}>
           <Col xs={24} md={8}><Form.Item name="serialNumber" label="Serial Number"><Input /></Form.Item></Col>
+          <Col xs={24} md={8}><Form.Item name="assetUsername" label="Asset Username"><Input /></Form.Item></Col>
           <Col xs={24} md={8}>
+            <Form.Item name="assetPassword" label="Asset Password" extra="Encrypted (AES-256-GCM) at rest">
+              <Input.Password placeholder={mode === 'edit' ? 'Leave blank to keep existing' : ''} autoComplete="new-password" />
+            </Form.Item>
+          </Col>
+          <Col xs={24}>
             <Form.Item
               name="assetTag"
               label="Asset Tag"
               dependencies={['department']}
-              extra={(() => {
-                const r = rangeFor(department);
-                return r ? `Allowed range for ${r.department}: ${String(r.min).padStart(4,'0')}–${String(r.max).padStart(4,'0')}` : 'Select a department to see the allowed range';
-              })()}
               rules={[
                 ({ getFieldValue }) => ({
                   validator(_, value) {
@@ -192,16 +195,10 @@ export default function AssetForm({ mode }) {
                 }),
               ]}
             >
-              <Input />
+              <AssetTagPicker department={department} />
             </Form.Item>
           </Col>
-          <Col xs={24} md={8}><Form.Item name="assetUsername" label="Asset Username"><Input /></Form.Item></Col>
-          <Col xs={24} md={8}>
-            <Form.Item name="assetPassword" label="Asset Password" extra="Encrypted (AES-256-GCM) at rest">
-              <Input.Password placeholder={mode === 'edit' ? 'Leave blank to keep existing' : ''} autoComplete="new-password" />
-            </Form.Item>
-          </Col>
-          <Col xs={24} md={16}><Form.Item name="additionalRemarks" label="Additional Remarks"><Input.TextArea rows={2} /></Form.Item></Col>
+          <Col xs={24}><Form.Item name="additionalRemarks" label="Additional Remarks"><Input.TextArea rows={2} /></Form.Item></Col>
         </Row>
 
         <Divider orientation="left">Tools</Divider>

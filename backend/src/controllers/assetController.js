@@ -46,4 +46,10 @@ async function remove(req, res, next) {
   } catch (e) { next(e); }
 }
 
-module.exports = { list, get, create, update, remove };
+async function tagStats(req, res, next) {
+  try {
+    res.json(await svc.tagStats(req.query.department));
+  } catch (e) { next(e); }
+}
+
+module.exports = { list, get, create, update, remove, tagStats };
