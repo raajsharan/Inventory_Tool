@@ -35,25 +35,16 @@ export default function AppLayout() {
         canWrite && { key: '/assets/import', icon: <UploadOutlined />, label: <Link to="/assets/import">Import</Link> },
       ].filter(Boolean),
     },
-    customPages.length && {
-      key: 'custom', icon: <AppstoreAddOutlined />, label: 'Custom Pages',
+    ...customPages.map((p) => ({
+      key: `custom-${p.slug}`,
+      icon: <AppstoreOutlined />,
+      label: p.name,
       children: [
-        ...customPages.map((p) => ({
-          key: `custom-${p.slug}`,
-          icon: <AppstoreOutlined />,
-          label: p.name,
-          children: [
-            { key: `/custom-pages/${p.slug}`, icon: <UnorderedListOutlined />, label: <Link to={`/custom-pages/${p.slug}`}>All Records</Link> },
-            canWrite && { key: `/custom-pages/${p.slug}/new`, icon: <PlusOutlined />, label: <Link to={`/custom-pages/${p.slug}/new`}>Add Record</Link> },
-            canWrite && { key: `/custom-pages/${p.slug}/import`, icon: <UploadOutlined />, label: <Link to={`/custom-pages/${p.slug}/import`}>Import</Link> },
-          ].filter(Boolean),
-        })),
-        isAdmin && { key: '/custom-pages/new', icon: <PlusOutlined />, label: <Link to="/custom-pages/new">Create New Page</Link> },
+        { key: `/custom-pages/${p.slug}`, icon: <UnorderedListOutlined />, label: <Link to={`/custom-pages/${p.slug}`}>All Records</Link> },
+        canWrite && { key: `/custom-pages/${p.slug}/new`, icon: <PlusOutlined />, label: <Link to={`/custom-pages/${p.slug}/new`}>Add Record</Link> },
+        canWrite && { key: `/custom-pages/${p.slug}/import`, icon: <UploadOutlined />, label: <Link to={`/custom-pages/${p.slug}/import`}>Import</Link> },
       ].filter(Boolean),
-    },
-    !customPages.length && isAdmin && {
-      key: '/custom-pages/new', icon: <AppstoreAddOutlined />, label: <Link to="/custom-pages/new">Create New Page</Link>,
-    },
+    })),
     isAdmin && {
       key: 'admin', icon: <SettingOutlined />, label: 'Administration',
       children: [
@@ -76,10 +67,11 @@ export default function AppLayout() {
       <Sider width={240} breakpoint="lg" collapsedWidth={64} theme="dark">
         <div className="logo-title">INVENTORY · IT</div>
         <Menu
+          key={`menu-${customPages.length}`}
           theme="dark"
           mode="inline"
           selectedKeys={[loc.pathname]}
-          defaultOpenKeys={['assets','admin','custom']}
+          defaultOpenKeys={['assets', 'admin', ...customPages.map(p => `custom-${p.slug}`)]}
           items={items}
         />
       </Sider>
