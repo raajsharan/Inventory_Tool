@@ -8,8 +8,11 @@ import AssetForm from './pages/Assets/AssetForm.jsx';
 import AssetImport from './pages/Assets/AssetImport.jsx';
 import CustomPageBuilder from './pages/CustomPages/CustomPageBuilder.jsx';
 import CustomPageView from './pages/CustomPages/CustomPageView.jsx';
+import CustomPageImport from './pages/CustomPages/CustomPageImport.jsx';
 import Users from './pages/Admin/Users.jsx';
 import Dropdowns from './pages/Admin/Dropdowns.jsx';
+import TagRanges from './pages/Admin/TagRanges.jsx';
+import AdminCustomPages from './pages/Admin/CustomPages.jsx';
 import AuditLogs from './pages/Admin/AuditLogs.jsx';
 import ImportHistory from './pages/Admin/ImportHistory.jsx';
 
@@ -26,8 +29,12 @@ export default function App() {
         <Route path="/assets/import" element={<AssetImport />} />
         <Route path="/custom-pages/new" element={<CustomPageBuilder />} />
         <Route path="/custom-pages/:slug" element={<CustomPageView />} />
+        <Route path="/custom-pages/:slug/new" element={<CustomPageView initialAction="new" />} />
+        <Route path="/custom-pages/:slug/import" element={<CustomPageImport />} />
         <Route path="/admin/users" element={<Users />} />
         <Route path="/admin/dropdowns" element={<Dropdowns />} />
+        <Route path="/admin/tag-ranges" element={<TagRanges />} />
+        <Route path="/admin/custom-pages" element={<AdminCustomPages />} />
         <Route path="/admin/audit" element={<AuditLogs />} />
         <Route path="/admin/imports" element={<ImportHistory />} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />

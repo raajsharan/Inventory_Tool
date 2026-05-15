@@ -1,38 +1,7 @@
 const db = require('../config/db');
 const crypto = require('../utils/crypto');
 const ApiError = require('../utils/ApiError');
-
-// Department → allowed asset-tag numeric range (inclusive). Ranges may overlap across teams.
-const DEPARTMENT_TAG_RANGES = {
-  'IT Team':                            { min: 1,    max: 1000 },
-  'Platform Team':                      { min: 1000, max: 2000 },
-  'Boston Team (QA)':                   { min: 2000, max: 4000 },
-  'Toronto Team (QA)':                  { min: 2000, max: 4000 },
-  'Bomgar Team':                        { min: 2000, max: 4000 },
-  'Support & Service':                  { min: 4000, max: 5000 },
-  'Lab Team':                           { min: 5000, max: 6000 },
-  "Joey's Team (Dev)":                  { min: 6000, max: 7000 },
-  'Architecture Team':                  { min: 7000, max: 8000 },
-  'PM, Support & NEA and other teams':  { min: 8000, max: 8500 },
-  'Security Team':                      { min: 8501, max: 9000 },
-  'POC Team':                           { min: 9000, max: 9500 },
-};
-
-function validateDepartmentTag(department, assetTag) {
-  if (!department || !assetTag) return;
-  const range = DEPARTMENT_TAG_RANGES[department];
-  if (!range) return; // unknown/legacy department — skip
-  const m = String(assetTag).match(/\d+/);
-  const n = m ? parseInt(m[0], 10) : NaN;
-  if (Number.isNaN(n)) {
-    throw new ApiError(400, 'Invalid asset tag', { asset_tag: 'Asset tag must contain a number' });
-  }
-  if (n < range.min || n > range.max) {
-    throw new ApiError(400, 'Asset tag out of range', {
-      asset_tag: `Tag ${n} is outside ${department}'s range ${range.min}–${range.max}`,
-    });
-  }
-}
+const deptSvc = require('./departmentService');
 
 const ASSET_COLUMNS = [
   'vm_name','os_hostname','ip_address','asset_type','os_type','os_version',
@@ -78,7 +47,19 @@ async function checkDuplicates({ vm_name, ip_address, asset_tag, excludeId }) {
 
 async function create(body, userId) {
   const row = mapBody(body);
-  validateDepartmentTag(row.department, row.asset_tag);
+
+  // Auto-assign next available tag when a department is set and no tag was supplied.
+  if (row.department && !row.asset_tag) {
+    const next = await deptSvc.nextAvailableTag(row.department);
+    if (next === null) {
+      throw new ApiError(409, 'No available asset tags', {
+        asset_tag: `All tags in ${row.department}'s range are in use`,
+      });
+    }
+    row.asset_tag = String(next);
+  }
+
+  await deptSvc.validateDepartmentTag(row.department, row.asset_tag);
   await checkDuplicates({
     vm_name: row.vm_name,
     ip_address: row.ip_address,
@@ -104,7 +85,7 @@ async function update(id, body, userId) {
     if (!existing.rows.length) throw new ApiError(404, 'Asset not found');
     const effDept = row.department !== undefined ? row.department : existing.rows[0].department;
     const effTag  = row.asset_tag  !== undefined ? row.asset_tag  : existing.rows[0].asset_tag;
-    validateDepartmentTag(effDept, effTag);
+    await deptSvc.validateDepartmentTag(effDept, effTag);
   }
   await checkDuplicates({
     vm_name: row.vm_name,
@@ -171,43 +152,14 @@ async function list({ search, osType, serverStatus, location, eolStatus, page = 
   };
 }
 
-async function tagStats(department) {
-  const range = DEPARTMENT_TAG_RANGES[department];
-  if (!range) throw new ApiError(400, 'Unknown department');
-  const { rows } = await db.query(
-    `SELECT DISTINCT NULLIF((regexp_match(asset_tag, '\\d+'))[1], '')::int AS n
-       FROM assets
-      WHERE asset_tag ~ '\\d'`
-  );
-  const used = new Set();
-  for (const r of rows) {
-    if (r.n !== null && r.n >= range.min && r.n <= range.max) used.add(r.n);
-  }
-  const availableAll = [];
-  let nextAvailable = null;
-  for (let i = range.min; i <= range.max; i++) {
-    if (!used.has(i)) {
-      availableAll.push(i);
-      if (nextAvailable === null) nextAvailable = i;
-    }
-  }
-  const total = range.max - range.min + 1;
-  return {
-    department,
-    min: range.min,
-    max: range.max,
-    total,
-    used: used.size,
-    available: availableAll.length,
-    nextAvailable,
-    availableSample: availableAll.slice(0, 20),
-    availableAll: availableAll.slice(0, 5000),
-  };
-}
-
 function scrub(row) {
   const { asset_password_encrypted, ...rest } = row;
   return { ...rest, hasPassword: !!asset_password_encrypted };
 }
 
-module.exports = { create, update, remove, get, list, ASSET_COLUMNS, DEPARTMENT_TAG_RANGES, validateDepartmentTag, tagStats };
+module.exports = {
+  create, update, remove, get, list,
+  ASSET_COLUMNS,
+  tagStats: deptSvc.tagStats,
+  validateDepartmentTag: deptSvc.validateDepartmentTag,
+};

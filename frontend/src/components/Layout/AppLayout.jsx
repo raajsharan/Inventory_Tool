@@ -3,8 +3,9 @@ import { Outlet, useLocation, useNavigate, Link } from 'react-router-dom';
 import { Layout, Menu, Avatar, Dropdown, Breadcrumb, Space, Typography } from 'antd';
 import {
   DashboardOutlined, DatabaseOutlined, PlusOutlined, UploadOutlined,
-  AppstoreAddOutlined, UserOutlined, TeamOutlined, FileSearchOutlined,
-  SettingOutlined, LogoutOutlined, HistoryOutlined,
+  AppstoreAddOutlined, AppstoreOutlined, UnorderedListOutlined,
+  UserOutlined, TeamOutlined, FileSearchOutlined,
+  SettingOutlined, LogoutOutlined, HistoryOutlined, TagsOutlined,
 } from '@ant-design/icons';
 import { useAuth } from '../../context/AuthContext.jsx';
 import api from '../../api/client';
@@ -38,8 +39,14 @@ export default function AppLayout() {
       key: 'custom', icon: <AppstoreAddOutlined />, label: 'Custom Pages',
       children: [
         ...customPages.map((p) => ({
-          key: `/custom-pages/${p.slug}`,
-          label: <Link to={`/custom-pages/${p.slug}`}>{p.name}</Link>,
+          key: `custom-${p.slug}`,
+          icon: <AppstoreOutlined />,
+          label: p.name,
+          children: [
+            { key: `/custom-pages/${p.slug}`, icon: <UnorderedListOutlined />, label: <Link to={`/custom-pages/${p.slug}`}>All Records</Link> },
+            canWrite && { key: `/custom-pages/${p.slug}/new`, icon: <PlusOutlined />, label: <Link to={`/custom-pages/${p.slug}/new`}>Add Record</Link> },
+            canWrite && { key: `/custom-pages/${p.slug}/import`, icon: <UploadOutlined />, label: <Link to={`/custom-pages/${p.slug}/import`}>Import</Link> },
+          ].filter(Boolean),
         })),
         isAdmin && { key: '/custom-pages/new', icon: <PlusOutlined />, label: <Link to="/custom-pages/new">Create New Page</Link> },
       ].filter(Boolean),
@@ -52,6 +59,8 @@ export default function AppLayout() {
       children: [
         { key: '/admin/users', icon: <TeamOutlined />, label: <Link to="/admin/users">Users</Link> },
         { key: '/admin/dropdowns', icon: <SettingOutlined />, label: <Link to="/admin/dropdowns">Dropdowns</Link> },
+        { key: '/admin/tag-ranges', icon: <TagsOutlined />, label: <Link to="/admin/tag-ranges">Tag Ranges</Link> },
+        { key: '/admin/custom-pages', icon: <AppstoreAddOutlined />, label: <Link to="/admin/custom-pages">Custom Pages</Link> },
         { key: '/admin/imports', icon: <HistoryOutlined />, label: <Link to="/admin/imports">Import History</Link> },
         { key: '/admin/audit', icon: <FileSearchOutlined />, label: <Link to="/admin/audit">Audit Log</Link> },
       ],

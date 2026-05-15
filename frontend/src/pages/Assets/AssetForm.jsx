@@ -1,37 +1,14 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
-  Card, Form, Input, Select, Switch, Row, Col, Button, Space, App, Typography, Divider,
+  Card, Form, Input, Select, Switch, Row, Col, Button, Space, App, Typography, Divider, Alert, Tag,
 } from 'antd';
+import { ThunderboltOutlined, EditOutlined } from '@ant-design/icons';
 import api from '../../api/client';
 import AssetTagPicker from './AssetTagPicker.jsx';
+import { useAuth } from '../../context/AuthContext.jsx';
 
 const ipRe = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
-
-// Department → allowed asset-tag numeric range (inclusive). Ranges may overlap across teams.
-const DEPARTMENT_TAG_RANGES = [
-  { department: 'IT Team',                            min: 1,    max: 1000 },
-  { department: 'Platform Team',                      min: 1000, max: 2000 },
-  { department: 'Boston Team (QA)',                   min: 2000, max: 4000 },
-  { department: 'Toronto Team (QA)',                  min: 2000, max: 4000 },
-  { department: 'Bomgar Team',                        min: 2000, max: 4000 },
-  { department: 'Support & Service',                  min: 4000, max: 5000 },
-  { department: 'Lab Team',                           min: 5000, max: 6000 },
-  { department: "Joey's Team (Dev)",                  min: 6000, max: 7000 },
-  { department: 'Architecture Team',                  min: 7000, max: 8000 },
-  { department: 'PM, Support & NEA and other teams',  min: 8000, max: 8500 },
-  { department: 'Security Team',                      min: 8501, max: 9000 },
-  { department: 'POC Team',                           min: 9000, max: 9500 },
-];
-
-const DEPARTMENT_OPTIONS = DEPARTMENT_TAG_RANGES.map(d => ({
-  label: `${d.department} (${String(d.min).padStart(4, '0')}–${String(d.max).padStart(4, '0')})`,
-  value: d.department,
-}));
-
-function rangeFor(dept) {
-  return DEPARTMENT_TAG_RANGES.find(d => d.department === dept);
-}
 
 function extractTagNumber(tag) {
   const m = String(tag || '').match(/\d+/);
@@ -42,14 +19,34 @@ export default function AssetForm({ mode }) {
   const { id } = useParams();
   const nav = useNavigate();
   const { message } = App.useApp();
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
   const [form] = Form.useForm();
   const [dd, setDd] = useState({});
+  const [departments, setDepartments] = useState([]);
   const [submitting, setSubmitting] = useState(false);
   const [osType, setOsType] = useState();
   const [department, setDepartment] = useState();
+  const [autoTagInfo, setAutoTagInfo] = useState(null);
+  const [autoTagLoading, setAutoTagLoading] = useState(false);
+  const [manualOverride, setManualOverride] = useState(false);
+
+  const departmentOptions = useMemo(
+    () => departments.map(d => ({
+      label: `${d.name} (${String(d.min_tag).padStart(4, '0')}–${String(d.max_tag).padStart(4, '0')})`,
+      value: d.name,
+    })),
+    [departments],
+  );
+
+  const rangeFor = (name) => departments.find(d => d.name === name);
 
   useEffect(() => {
     api.get('/dropdowns').then(r => setDd(r.data.grouped || {}));
+    api.get('/departments', { params: { activeOnly: 1 } })
+      .then(r => setDepartments(r.data.items || []))
+      .catch(() => {});
+
     if (mode === 'edit' && id) {
       api.get(`/assets/${id}`).then(r => {
         form.setFieldsValue({
@@ -84,6 +81,34 @@ export default function AssetForm({ mode }) {
     }
   }, [id, mode]); // eslint-disable-line
 
+  // Auto-assign next tag whenever department changes (create mode, no manual override).
+  useEffect(() => {
+    if (mode !== 'create') return;
+    if (!department) {
+      setAutoTagInfo(null);
+      form.setFieldValue('assetTag', undefined);
+      return;
+    }
+    if (manualOverride) return;
+
+    let cancelled = false;
+    setAutoTagLoading(true);
+    api.get('/assets/tag-stats', { params: { department } })
+      .then(({ data }) => {
+        if (cancelled) return;
+        setAutoTagInfo(data);
+        if (data.nextAvailable != null) {
+          form.setFieldValue('assetTag', String(data.nextAvailable));
+        } else {
+          form.setFieldValue('assetTag', undefined);
+        }
+      })
+      .catch(() => { if (!cancelled) setAutoTagInfo(null); })
+      .finally(() => { if (!cancelled) setAutoTagLoading(false); });
+
+    return () => { cancelled = true; };
+  }, [department, manualOverride, mode]); // eslint-disable-line
+
   const opts = (cat, parent) => (dd[cat] || [])
     .filter(d => !parent || !d.parent_value || d.parent_value === parent)
     .map(d => ({ label: d.value, value: d.value }));
@@ -111,6 +136,9 @@ export default function AssetForm({ mode }) {
       message.error(err?.error || 'Failed to save');
     } finally { setSubmitting(false); }
   }
+
+  const showAutoTagBlock = mode === 'create' && !manualOverride;
+  const range = rangeFor(department);
 
   return (
     <Card title={<Typography.Title level={4} style={{ margin: 0 }}>{mode === 'create' ? 'Add Asset' : 'Edit Asset'}</Typography.Title>}>
@@ -143,9 +171,13 @@ export default function AssetForm({ mode }) {
                 allowClear
                 showSearch
                 placeholder="Select department"
-                options={DEPARTMENT_OPTIONS}
+                options={departmentOptions}
                 optionFilterProp="label"
-                onChange={(v) => { setDepartment(v); form.validateFields(['assetTag']).catch(() => {}); }}
+                onChange={(v) => {
+                  setDepartment(v);
+                  if (!manualOverride) form.setFieldValue('assetTag', undefined);
+                  form.validateFields(['assetTag']).catch(() => {});
+                }}
               />
             </Form.Item>
           </Col>
@@ -173,10 +205,23 @@ export default function AssetForm({ mode }) {
               <Input.Password placeholder={mode === 'edit' ? 'Leave blank to keep existing' : ''} autoComplete="new-password" />
             </Form.Item>
           </Col>
+
           <Col xs={24}>
             <Form.Item
               name="assetTag"
-              label="Asset Tag"
+              label={
+                <Space>
+                  <span>Asset Tag</span>
+                  {mode === 'create' && isAdmin && (
+                    <Tag
+                      color={manualOverride ? 'orange' : 'blue'}
+                      icon={manualOverride ? <EditOutlined /> : <ThunderboltOutlined />}
+                    >
+                      {manualOverride ? 'Manual override' : 'Auto-assigned'}
+                    </Tag>
+                  )}
+                </Space>
+              }
               dependencies={['department']}
               rules={[
                 ({ getFieldValue }) => ({
@@ -187,17 +232,35 @@ export default function AssetForm({ mode }) {
                     if (!r) return Promise.resolve();
                     const n = extractTagNumber(value);
                     if (Number.isNaN(n)) return Promise.reject(new Error('Asset tag must contain a number'));
-                    if (n < r.min || n > r.max) {
-                      return Promise.reject(new Error(`Tag ${n} is outside ${r.department}'s range ${r.min}–${r.max}`));
+                    if (n < r.min_tag || n > r.max_tag) {
+                      return Promise.reject(new Error(`Tag ${n} is outside ${r.name}'s range ${r.min_tag}–${r.max_tag}`));
                     }
                     return Promise.resolve();
                   },
                 }),
               ]}
             >
-              <AssetTagPicker department={department} />
+              {showAutoTagBlock ? (
+                <AutoAssignedTagDisplay
+                  department={department}
+                  range={range}
+                  info={autoTagInfo}
+                  loading={autoTagLoading}
+                  isAdmin={isAdmin}
+                  onEnableOverride={() => setManualOverride(true)}
+                />
+              ) : (
+                <AssetTagPicker department={department} />
+              )}
             </Form.Item>
+            {mode === 'create' && isAdmin && manualOverride && (
+              <Button size="small" type="link" style={{ paddingLeft: 0, marginTop: -8 }}
+                onClick={() => { setManualOverride(false); form.setFieldValue('assetTag', undefined); }}>
+                ← Back to auto-assign
+              </Button>
+            )}
           </Col>
+
           <Col xs={24}><Form.Item name="additionalRemarks" label="Additional Remarks"><Input.TextArea rows={2} /></Form.Item></Col>
         </Row>
 
@@ -213,6 +276,49 @@ export default function AssetForm({ mode }) {
           <Button onClick={() => nav('/assets')}>Cancel</Button>
         </Space>
       </Form>
+    </Card>
+  );
+}
+
+function AutoAssignedTagDisplay({ department, range, info, loading, isAdmin, onEnableOverride, value }) {
+  if (!department) {
+    return <Alert type="info" showIcon message="Select a department to auto-assign an asset tag." />;
+  }
+  if (loading && !info) {
+    return <Alert type="info" message="Looking up next available tag…" />;
+  }
+  if (!info) return null;
+  const noneAvailable = info.nextAvailable == null;
+  return (
+    <Card size="small" style={{ background: '#f6ffed', borderColor: '#b7eb8f' }}>
+      <Row gutter={16} align="middle">
+        <Col flex="auto">
+          <Space direction="vertical" size={0}>
+            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+              <ThunderboltOutlined style={{ color: '#1677ff' }} /> Auto-assigned for {range?.name || department}
+            </Typography.Text>
+            {noneAvailable ? (
+              <Typography.Text type="danger">No available tags in this department's range ({range?.min_tag}–{range?.max_tag}).</Typography.Text>
+            ) : (
+              <Space size="middle" align="center">
+                <Typography.Text style={{ fontSize: 28, fontWeight: 600, color: '#1677ff' }}>
+                  {value || info.nextAvailable}
+                </Typography.Text>
+                <Typography.Text type="secondary">
+                  Range {info.min}–{info.max} · {info.available.toLocaleString()} of {info.total.toLocaleString()} available
+                </Typography.Text>
+              </Space>
+            )}
+          </Space>
+        </Col>
+        {isAdmin && (
+          <Col>
+            <Button icon={<EditOutlined />} onClick={onEnableOverride}>
+              Override manually
+            </Button>
+          </Col>
+        )}
+      </Row>
     </Card>
   );
 }

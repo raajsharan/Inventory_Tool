@@ -41,6 +41,41 @@ CREATE TABLE IF NOT EXISTS dropdown_master (
 CREATE INDEX IF NOT EXISTS idx_dropdown_category ON dropdown_master(category);
 
 -- ---------------------------------------------------------------------
+-- department_tag_ranges
+--   Admin-managed list of departments and their allowed asset-tag
+--   numeric ranges. Replaces the previously hardcoded mapping.
+--   Ranges may overlap across departments.
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS department_tag_ranges (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name            VARCHAR(255) UNIQUE NOT NULL,
+    min_tag         INT NOT NULL,
+    max_tag         INT NOT NULL,
+    sort_order      INT NOT NULL DEFAULT 0,
+    is_active       BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CHECK (min_tag >= 0 AND max_tag >= min_tag)
+);
+
+CREATE INDEX IF NOT EXISTS idx_dept_ranges_active ON department_tag_ranges(is_active);
+
+INSERT INTO department_tag_ranges (name, min_tag, max_tag, sort_order) VALUES
+  ('IT Team',                            1,    1000, 1),
+  ('Platform Team',                      1000, 2000, 2),
+  ('Boston Team (QA)',                   2000, 4000, 3),
+  ('Toronto Team (QA)',                  2000, 4000, 4),
+  ('Bomgar Team',                        2000, 4000, 5),
+  ('Support & Service',                  4000, 5000, 6),
+  ('Lab Team',                           5000, 6000, 7),
+  ('Joey''s Team (Dev)',                 6000, 7000, 8),
+  ('Architecture Team',                  7000, 8000, 9),
+  ('PM, Support & NEA and other teams',  8000, 8500, 10),
+  ('Security Team',                      8501, 9000, 11),
+  ('POC Team',                           9000, 9500, 12)
+ON CONFLICT (name) DO NOTHING;
+
+-- ---------------------------------------------------------------------
 -- assets
 -- ---------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS assets (
@@ -186,7 +221,7 @@ DECLARE
     t TEXT;
 BEGIN
     FOR t IN
-        SELECT unnest(ARRAY['users','dropdown_master','assets','custom_pages','custom_page_records'])
+        SELECT unnest(ARRAY['users','dropdown_master','assets','custom_pages','custom_page_records','department_tag_ranges'])
     LOOP
         EXECUTE format(
             'DROP TRIGGER IF EXISTS trg_%I_updated ON %I;

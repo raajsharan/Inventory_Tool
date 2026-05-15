@@ -1,7 +1,7 @@
 const ExcelJS = require('exceljs');
 const db = require('../config/db');
 const assetSvc = require('./assetService');
-const { DEPARTMENT_TAG_RANGES } = assetSvc;
+const deptSvc = require('./departmentService');
 
 const COLUMNS = [
   { key: 'vm_name',                  header: 'VM Name *',                width: 22 },
@@ -85,12 +85,13 @@ async function buildTemplate() {
     cell.border = { bottom: { style: 'thin', color: { argb: 'FF999999' } } };
   });
   hdrRow.height = 22;
-  for (const [dept, r] of Object.entries(DEPARTMENT_TAG_RANGES)) {
+  const ranges = await deptSvc.list({ activeOnly: true });
+  for (const r of ranges) {
     ws3.addRow([
-      dept,
-      `${String(r.min).padStart(4, '0')}–${String(r.max).padStart(4, '0')}`,
-      r.min,
-      r.max,
+      r.name,
+      `${String(r.min_tag).padStart(4, '0')}–${String(r.max_tag).padStart(4, '0')}`,
+      r.min_tag,
+      r.max_tag,
     ]);
   }
 
