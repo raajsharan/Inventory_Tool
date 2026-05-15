@@ -29,7 +29,7 @@ async function get(req, res, next) {
       `SELECT cp.*, COALESCE(json_agg(cpf.* ORDER BY cpf.sort_order) FILTER (WHERE cpf.id IS NOT NULL), '[]') AS fields
          FROM custom_pages cp
          LEFT JOIN custom_page_fields cpf ON cpf.page_id = cp.id
-        WHERE cp.id = $1 OR cp.slug = $1
+        WHERE cp.id::text = $1 OR cp.slug = $1
         GROUP BY cp.id`,
       [req.params.id]
     );

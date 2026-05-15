@@ -24,7 +24,9 @@ export default function CustomPageView() {
   const isAdmin = user?.role === 'admin';
 
   useEffect(() => {
-    api.get(`/custom-pages/${slug}`).then(r => setPage(r.data));
+    api.get(`/custom-pages/${slug}`)
+      .then(r => setPage(r.data))
+      .catch(e => message.error(e.response?.data?.error || 'Failed to load page'));
   }, [slug]);
 
   async function loadRecords() {
