@@ -2,15 +2,19 @@ import { useEffect, useState } from 'react';
 import { Card, Table, Button, Modal, Form, Input, Select, Switch, Space, Tag, App, Popconfirm, Typography } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import api from '../../api/client';
+import { useAuth } from '../../context/AuthContext.jsx';
 
-const ROLES = [
+const VISIBLE_ROLES = [
   { label: 'Admin', value: 'admin' },
   { label: 'Asset Manager', value: 'asset_manager' },
   { label: 'Viewer', value: 'viewer' },
 ];
+const SUPERADMIN_OPTION = { label: 'Superadmin', value: 'superadmin' };
 
 export default function Users() {
   const { message } = App.useApp();
+  const { user } = useAuth();
+  const ROLES = user?.role === 'superadmin' ? [SUPERADMIN_OPTION, ...VISIBLE_ROLES] : VISIBLE_ROLES;
   const [data, setData] = useState([]);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(null);
@@ -56,7 +60,7 @@ export default function Users() {
         columns={[
           { title: 'Email', dataIndex: 'email' },
           { title: 'Name', dataIndex: 'full_name' },
-          { title: 'Role', dataIndex: 'role', render: r => <Tag color={r === 'admin' ? 'red' : r === 'asset_manager' ? 'blue' : 'default'}>{r}</Tag> },
+          { title: 'Role', dataIndex: 'role', render: r => <Tag color={r === 'superadmin' ? 'purple' : r === 'admin' ? 'red' : r === 'asset_manager' ? 'blue' : 'default'}>{r}</Tag> },
           { title: 'Active', dataIndex: 'is_active', render: v => v ? <Tag color="green">Yes</Tag> : <Tag>No</Tag> },
           { title: 'Last Login', dataIndex: 'last_login_at', render: v => v ? new Date(v).toLocaleString() : '—' },
           { title: 'Actions', width: 130, render: (_, r) => (

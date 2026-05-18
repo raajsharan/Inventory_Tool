@@ -16,6 +16,7 @@ function authenticate(req, _res, next) {
 function authorize(...roles) {
   return (req, _res, next) => {
     if (!req.user) return next(new ApiError(401, 'Unauthenticated'));
+    if (req.user.role === 'superadmin') return next(); // god mode
     if (roles.length && !roles.includes(req.user.role)) {
       return next(new ApiError(403, 'Forbidden: insufficient role'));
     }
@@ -23,4 +24,18 @@ function authorize(...roles) {
   };
 }
 
-module.exports = { authenticate, authorize };
+// Per-page RBAC check, layered on top of authenticate + authorize.
+function requirePageAccess(pageKey) {
+  return async (req, _res, next) => {
+    try {
+      if (!req.user) return next(new ApiError(401, 'Unauthenticated'));
+      if (req.user.role === 'superadmin') return next();
+      const svc = require('../services/pageAccessService');
+      const ok = await svc.can(req.user.role, pageKey);
+      if (!ok) return next(new ApiError(403, 'Page access denied for your role'));
+      return next();
+    } catch (e) { return next(e); }
+  };
+}
+
+module.exports = { authenticate, authorize, requirePageAccess };

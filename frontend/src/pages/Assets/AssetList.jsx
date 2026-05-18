@@ -29,8 +29,8 @@ export default function AssetList({
   const [hiddenSet, setHiddenSet] = useState(new Set());
   const isHidden = (k) => hiddenSet.has(k);
 
-  const canWrite = ['admin','asset_manager'].includes(user?.role);
-  const isAdmin = user?.role === 'admin';
+  const canWrite = ['admin','superadmin','asset_manager'].includes(user?.role);
+  const isAdmin = ['admin','superadmin'].includes(user?.role);
 
   async function load() {
     setLoading(true);

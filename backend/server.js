@@ -26,9 +26,17 @@ app.use((req, res) => res.status(404).json({ error: 'Not found', path: req.path 
 app.use(errorHandler);
 
 const PORT = process.env.PORT || 4000;
-app.listen(PORT, () => {
-  // eslint-disable-next-line no-console
-  console.log(`[inventory-api] listening on :${PORT} (${process.env.NODE_ENV || 'development'})`);
-});
+(async () => {
+  try {
+    await require('./src/bootstrap/ensureSuperadmin')();
+  } catch (e) {
+    // eslint-disable-next-line no-console
+    console.error('[bootstrap] failed:', e);
+  }
+  app.listen(PORT, () => {
+    // eslint-disable-next-line no-console
+    console.log(`[inventory-api] listening on :${PORT} (${process.env.NODE_ENV || 'development'})`);
+  });
+})();
 
 module.exports = app;

@@ -8,6 +8,7 @@ async function list(req, res, next) {
       action: req.query.action,
       entityType: req.query.entityType,
       userId: req.query.userId,
+      viewerRole: req.user?.role,
     }));
   } catch (e) { next(e); }
 }

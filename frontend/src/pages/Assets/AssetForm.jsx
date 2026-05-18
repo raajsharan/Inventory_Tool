@@ -23,7 +23,7 @@ export default function AssetForm({ mode, apiPrefix = '/assets', listPath = '/as
   const nav = useNavigate();
   const { message } = App.useApp();
   const { user } = useAuth();
-  const isAdmin = user?.role === 'admin';
+  const isAdmin = ['admin', 'superadmin'].includes(user?.role);
   const [form] = Form.useForm();
   const [dd, setDd] = useState({});
   const [departments, setDepartments] = useState([]);

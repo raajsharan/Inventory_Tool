@@ -20,8 +20,8 @@ export default function CustomPageView() {
   const [pageForm] = Form.useForm();
   const [pg, setPg] = useState({ current: 1, pageSize: 20 });
 
-  const canWrite = ['admin', 'asset_manager'].includes(user?.role);
-  const isAdmin = user?.role === 'admin';
+  const canWrite = ['admin', 'superadmin', 'asset_manager'].includes(user?.role);
+  const isAdmin = ['admin', 'superadmin'].includes(user?.role);
 
   useEffect(() => {
     api.get(`/custom-pages/${slug}`)

@@ -7,7 +7,7 @@ import {
   UserOutlined, TeamOutlined, FileSearchOutlined,
   SettingOutlined, LogoutOutlined, HistoryOutlined, TagsOutlined,
   GlobalOutlined, BarChartOutlined, EyeOutlined, CloudServerOutlined,
-  HddOutlined,
+  HddOutlined, SafetyCertificateOutlined,
 } from '@ant-design/icons';
 import { useAuth } from '../../context/AuthContext.jsx';
 import api from '../../api/client';
@@ -15,7 +15,7 @@ import api from '../../api/client';
 const { Sider, Header, Content } = Layout;
 
 export default function AppLayout() {
-  const { user, logout } = useAuth();
+  const { user, logout, canSee } = useAuth();
   const nav = useNavigate();
   const loc = useLocation();
   const [customPages, setCustomPages] = useState([]);
@@ -24,65 +24,55 @@ export default function AppLayout() {
     api.get('/custom-pages').then(r => setCustomPages(r.data.items || [])).catch(() => {});
   }, []);
 
-  const isAdmin = user?.role === 'admin';
-  const canWrite = ['admin', 'asset_manager'].includes(user?.role);
+  const isAdmin = ['admin', 'superadmin'].includes(user?.role);
+  const canWrite = ['admin', 'superadmin', 'asset_manager'].includes(user?.role);
+
+  // Combined gate: role check (existing) AND page_access matrix.
+  const can = (pageKey, roleOk = true) => roleOk && (canSee ? canSee(pageKey) : true);
+
+  const inventoryGroup = (key, pageKey, icon, label, base, addLabel = 'Add') => {
+    if (!can(pageKey)) return null;
+    return {
+      key, icon, label,
+      children: [
+        { key: `${base}`, label: <Link to={base}>All Records</Link> },
+        canWrite && { key: `${base}/new`, icon: <PlusOutlined />, label: <Link to={`${base}/new`}>{addLabel}</Link> },
+        canWrite && { key: `${base}/import`, icon: <UploadOutlined />, label: <Link to={`${base}/import`}>Import</Link> },
+      ].filter(Boolean),
+    };
+  };
 
   const items = [
-    { key: '/dashboard', icon: <DashboardOutlined />, label: <Link to="/dashboard">Dashboard</Link> },
-    {
-      key: 'assets', icon: <DatabaseOutlined />, label: 'Assets',
-      children: [
-        { key: '/assets', label: <Link to="/assets">All Assets</Link> },
-        canWrite && { key: '/assets/new', icon: <PlusOutlined />, label: <Link to="/assets/new">Add Asset</Link> },
-        canWrite && { key: '/assets/import', icon: <UploadOutlined />, label: <Link to="/assets/import">Import</Link> },
-      ].filter(Boolean),
-    },
-    {
-      key: 'beijing-assets', icon: <GlobalOutlined />, label: 'Beijing Assets',
-      children: [
-        { key: '/beijing-assets', label: <Link to="/beijing-assets">All Assets</Link> },
-        canWrite && { key: '/beijing-assets/new', icon: <PlusOutlined />, label: <Link to="/beijing-assets/new">Add Asset</Link> },
-        canWrite && { key: '/beijing-assets/import', icon: <UploadOutlined />, label: <Link to="/beijing-assets/import">Import</Link> },
-      ].filter(Boolean),
-    },
-    {
-      key: 'ext-assets', icon: <CloudServerOutlined />, label: 'Ext. Assets',
-      children: [
-        { key: '/ext-assets', label: <Link to="/ext-assets">All Assets</Link> },
-        canWrite && { key: '/ext-assets/new', icon: <PlusOutlined />, label: <Link to="/ext-assets/new">Add Asset</Link> },
-        canWrite && { key: '/ext-assets/import', icon: <UploadOutlined />, label: <Link to="/ext-assets/import">Import</Link> },
-      ].filter(Boolean),
-    },
-    {
-      key: 'physical-esxi', icon: <HddOutlined />, label: 'Physical & ESXi',
-      children: [
-        { key: '/physical-esxi', label: <Link to="/physical-esxi">All Servers</Link> },
-        canWrite && { key: '/physical-esxi/new', icon: <PlusOutlined />, label: <Link to="/physical-esxi/new">Add Server</Link> },
-        canWrite && { key: '/physical-esxi/import', icon: <UploadOutlined />, label: <Link to="/physical-esxi/import">Import</Link> },
-      ].filter(Boolean),
-    },
-    ...customPages.map((p) => ({
-      key: `custom-${p.slug}`,
-      icon: <AppstoreOutlined />,
-      label: p.name,
-      children: [
-        { key: `/custom-pages/${p.slug}`, icon: <UnorderedListOutlined />, label: <Link to={`/custom-pages/${p.slug}`}>All Records</Link> },
-        canWrite && { key: `/custom-pages/${p.slug}/new`, icon: <PlusOutlined />, label: <Link to={`/custom-pages/${p.slug}/new`}>Add Record</Link> },
-        canWrite && { key: `/custom-pages/${p.slug}/import`, icon: <UploadOutlined />, label: <Link to={`/custom-pages/${p.slug}/import`}>Import</Link> },
-      ].filter(Boolean),
-    })),
-    { key: '/reports', icon: <BarChartOutlined />, label: <Link to="/reports">Report Builder</Link> },
+    can('dashboard') && { key: '/dashboard', icon: <DashboardOutlined />, label: <Link to="/dashboard">Dashboard</Link> },
+    inventoryGroup('assets',          'assets',                <DatabaseOutlined />,    'Assets',           '/assets',         'Add Asset'),
+    inventoryGroup('beijing-assets',  'beijing_assets',        <GlobalOutlined />,      'Beijing Assets',   '/beijing-assets', 'Add Asset'),
+    inventoryGroup('ext-assets',      'ext_assets',            <CloudServerOutlined />, 'Ext. Assets',      '/ext-assets',     'Add Asset'),
+    inventoryGroup('physical-esxi',   'physical_esxi_servers', <HddOutlined />,         'Physical & ESXi',  '/physical-esxi',  'Add Server'),
+    ...customPages
+      .filter(p => can(`custom:${p.slug}`))
+      .map((p) => ({
+        key: `custom-${p.slug}`,
+        icon: <AppstoreOutlined />,
+        label: p.name,
+        children: [
+          { key: `/custom-pages/${p.slug}`, icon: <UnorderedListOutlined />, label: <Link to={`/custom-pages/${p.slug}`}>All Records</Link> },
+          canWrite && { key: `/custom-pages/${p.slug}/new`, icon: <PlusOutlined />, label: <Link to={`/custom-pages/${p.slug}/new`}>Add Record</Link> },
+          canWrite && { key: `/custom-pages/${p.slug}/import`, icon: <UploadOutlined />, label: <Link to={`/custom-pages/${p.slug}/import`}>Import</Link> },
+        ].filter(Boolean),
+      })),
+    can('reports') && { key: '/reports', icon: <BarChartOutlined />, label: <Link to="/reports">Report Builder</Link> },
     isAdmin && {
       key: 'admin', icon: <SettingOutlined />, label: 'Administration',
       children: [
-        { key: '/admin/users', icon: <TeamOutlined />, label: <Link to="/admin/users">Users</Link> },
-        { key: '/admin/dropdowns', icon: <SettingOutlined />, label: <Link to="/admin/dropdowns">Dropdowns</Link> },
-        { key: '/admin/tag-ranges', icon: <TagsOutlined />, label: <Link to="/admin/tag-ranges">Tag Ranges</Link> },
-        { key: '/admin/custom-pages', icon: <AppstoreAddOutlined />, label: <Link to="/admin/custom-pages">Custom Pages</Link> },
-        { key: '/admin/field-visibility', icon: <EyeOutlined />, label: <Link to="/admin/field-visibility">Field Customization</Link> },
-        { key: '/admin/imports', icon: <HistoryOutlined />, label: <Link to="/admin/imports">Import History</Link> },
-        { key: '/admin/audit', icon: <FileSearchOutlined />, label: <Link to="/admin/audit">Audit Log</Link> },
-      ],
+        can('admin/users')            && { key: '/admin/users',             icon: <TeamOutlined />,           label: <Link to="/admin/users">Users</Link> },
+        can('admin/dropdowns')        && { key: '/admin/dropdowns',         icon: <SettingOutlined />,        label: <Link to="/admin/dropdowns">Dropdowns</Link> },
+        can('admin/tag-ranges')       && { key: '/admin/tag-ranges',        icon: <TagsOutlined />,           label: <Link to="/admin/tag-ranges">Tag Ranges</Link> },
+        can('admin/custom-pages')     && { key: '/admin/custom-pages',      icon: <AppstoreAddOutlined />,    label: <Link to="/admin/custom-pages">Custom Pages</Link> },
+        can('admin/field-visibility') && { key: '/admin/field-visibility',  icon: <EyeOutlined />,            label: <Link to="/admin/field-visibility">Field Customization</Link> },
+        can('admin/page-access')      && { key: '/admin/page-access',       icon: <SafetyCertificateOutlined />, label: <Link to="/admin/page-access">Page Access</Link> },
+        can('admin/imports')          && { key: '/admin/imports',           icon: <HistoryOutlined />,        label: <Link to="/admin/imports">Import History</Link> },
+        can('admin/audit')            && { key: '/admin/audit',             icon: <FileSearchOutlined />,     label: <Link to="/admin/audit">Audit Log</Link> },
+      ].filter(Boolean),
     },
   ].filter(Boolean);
 

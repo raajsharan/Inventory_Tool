@@ -2,11 +2,18 @@ const bcrypt = require('bcrypt');
 const db = require('../config/db');
 const ApiError = require('../utils/ApiError');
 
-async function list(_req, res, next) {
+const VISIBLE_ROLES = ['admin', 'asset_manager', 'viewer'];
+const ALL_ROLES = ['superadmin', ...VISIBLE_ROLES];
+
+function isSuper(req) { return req.user?.role === 'superadmin'; }
+
+async function list(req, res, next) {
   try {
+    const whereSql = isSuper(req) ? '' : `WHERE role <> 'superadmin'`;
     const { rows } = await db.query(
       `SELECT id, email, full_name, role, is_active, last_login_at, created_at
-         FROM users ORDER BY created_at DESC`
+         FROM users ${whereSql}
+        ORDER BY created_at DESC`
     );
     res.json({ items: rows });
   } catch (e) { next(e); }
@@ -16,7 +23,8 @@ async function create(req, res, next) {
   try {
     const { email, fullName, password, role } = req.body;
     if (!email || !password || !fullName || !role) throw new ApiError(400, 'Missing fields');
-    if (!['admin','asset_manager','viewer'].includes(role)) throw new ApiError(400, 'Invalid role');
+    const allowed = isSuper(req) ? ALL_ROLES : VISIBLE_ROLES;
+    if (!allowed.includes(role)) throw new ApiError(400, 'Invalid role');
     const hash = await bcrypt.hash(password, 12);
     const { rows } = await db.query(
       `INSERT INTO users (email, full_name, password_hash, role)
@@ -30,9 +38,22 @@ async function create(req, res, next) {
   }
 }
 
+async function targetIsSuperadmin(id) {
+  const { rows } = await db.query(`SELECT role FROM users WHERE id = $1`, [id]);
+  return rows[0]?.role === 'superadmin';
+}
+
 async function update(req, res, next) {
   try {
+    if (!isSuper(req) && await targetIsSuperadmin(req.params.id)) {
+      // Hide the superadmin row from non-superadmins entirely.
+      throw new ApiError(404, 'User not found');
+    }
     const { fullName, role, isActive, password } = req.body;
+    if (role !== undefined) {
+      const allowed = isSuper(req) ? ALL_ROLES : VISIBLE_ROLES;
+      if (!allowed.includes(role)) throw new ApiError(400, 'Invalid role');
+    }
     const sets = [];
     const params = [];
     if (fullName !== undefined) { params.push(fullName); sets.push(`full_name = $${params.length}`); }
@@ -56,6 +77,9 @@ async function update(req, res, next) {
 
 async function remove(req, res, next) {
   try {
+    if (!isSuper(req) && await targetIsSuperadmin(req.params.id)) {
+      throw new ApiError(404, 'User not found');
+    }
     const { rowCount } = await db.query(`DELETE FROM users WHERE id = $1`, [req.params.id]);
     if (!rowCount) throw new ApiError(404, 'User not found');
     res.status(204).end();

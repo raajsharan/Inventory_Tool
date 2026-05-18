@@ -12,12 +12,18 @@ CREATE TABLE IF NOT EXISTS users (
     email           VARCHAR(255) UNIQUE NOT NULL,
     full_name       VARCHAR(255) NOT NULL,
     password_hash   VARCHAR(255) NOT NULL,
-    role            VARCHAR(32) NOT NULL CHECK (role IN ('admin','asset_manager','viewer')),
+    role            VARCHAR(32) NOT NULL CHECK (role IN ('superadmin','admin','asset_manager','viewer')),
     is_active       BOOLEAN NOT NULL DEFAULT TRUE,
     last_login_at   TIMESTAMPTZ,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- For existing deployments: widen the role CHECK to include 'superadmin'.
+ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check;
+ALTER TABLE users
+  ADD CONSTRAINT users_role_check
+  CHECK (role IN ('superadmin','admin','asset_manager','viewer'));
 
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
@@ -353,6 +359,28 @@ CREATE TABLE IF NOT EXISTS page_field_visibility (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- ManageEngine + Tenable are not applicable on Physical & ESXi by default.
+-- Admins can re-enable individual fields via Administration → Field Customization.
+INSERT INTO page_field_visibility (page_key, hidden)
+VALUES ('physical_esxi_servers', '["manage_engine_installed","tenable_installed"]'::jsonb)
+ON CONFLICT (page_key) DO NOTHING;
+
+-- ---------------------------------------------------------------------
+-- page_access
+--   Per-page, per-role visibility/access matrix. Default behavior when no
+--   row exists for a (page_key, role) is "allowed = TRUE" — the system runs
+--   open until admins start restricting. Superadmin always bypasses.
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS page_access (
+    page_key    VARCHAR(128) NOT NULL,
+    role        VARCHAR(32)  NOT NULL,
+    allowed     BOOLEAN NOT NULL DEFAULT TRUE,
+    updated_by  UUID REFERENCES users(id) ON DELETE SET NULL,
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (page_key, role)
+);
+CREATE INDEX IF NOT EXISTS idx_page_access_role ON page_access(role);
+
 -- ---------------------------------------------------------------------
 -- updated_at trigger
 -- ---------------------------------------------------------------------
@@ -369,7 +397,7 @@ DECLARE
     t TEXT;
 BEGIN
     FOR t IN
-        SELECT unnest(ARRAY['users','dropdown_master','assets','beijing_assets','ext_assets','physical_esxi_servers','custom_pages','custom_page_records','department_tag_ranges','page_field_visibility'])
+        SELECT unnest(ARRAY['users','dropdown_master','assets','beijing_assets','ext_assets','physical_esxi_servers','custom_pages','custom_page_records','department_tag_ranges','page_field_visibility','page_access'])
     LOOP
         EXECUTE format(
             'DROP TRIGGER IF EXISTS trg_%I_updated ON %I;
