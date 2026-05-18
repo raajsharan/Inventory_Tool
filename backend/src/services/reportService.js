@@ -52,9 +52,10 @@ async function sources() {
   }));
 
   return [
-    { key: 'assets',         label: 'Asset Inventory',          kind: 'table', table: 'assets',         fields: ASSET_FIELDS },
-    { key: 'beijing_assets', label: 'Beijing Asset Inventory',  kind: 'table', table: 'beijing_assets', fields: ASSET_FIELDS },
-    { key: 'ext_assets',     label: 'Ext. Asset Inventory',     kind: 'table', table: 'ext_assets',     fields: ASSET_FIELDS },
+    { key: 'assets',                label: 'Asset Inventory',          kind: 'table', table: 'assets',                fields: ASSET_FIELDS },
+    { key: 'beijing_assets',        label: 'Beijing Asset Inventory',  kind: 'table', table: 'beijing_assets',        fields: ASSET_FIELDS },
+    { key: 'ext_assets',            label: 'Ext. Asset Inventory',     kind: 'table', table: 'ext_assets',            fields: ASSET_FIELDS },
+    { key: 'physical_esxi_servers', label: 'Physical & ESXi Servers',  kind: 'table', table: 'physical_esxi_servers', fields: ASSET_FIELDS },
     ...customSources,
   ];
 }

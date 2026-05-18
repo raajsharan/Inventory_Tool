@@ -4,7 +4,7 @@ const ApiError = require('../utils/ApiError');
 // Tables that store an `asset_tag` column we may need to scan for usage.
 // Asset tags are a SINGLE GLOBAL POOL across these tables — used tags and
 // duplicate checks span every table in this list.
-const ALL_TABLES = ['assets', 'beijing_assets', 'ext_assets'];
+const ALL_TABLES = ['assets', 'beijing_assets', 'ext_assets', 'physical_esxi_servers'];
 const ALLOWED_TABLES = new Set(ALL_TABLES);
 function safeTable(t) {
   return ALLOWED_TABLES.has(t) ? t : 'assets';

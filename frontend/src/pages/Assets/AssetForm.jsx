@@ -175,16 +175,18 @@ export default function AssetForm({ mode, apiPrefix = '/assets', listPath = '/as
                       const params = { ip: value };
                       if (mode === 'edit' && id) {
                         params.excludeTable =
-                          apiPrefix.includes('beijing') ? 'beijing_assets'
-                          : apiPrefix.includes('ext')   ? 'ext_assets'
+                          apiPrefix.includes('beijing')       ? 'beijing_assets'
+                          : apiPrefix.includes('ext')         ? 'ext_assets'
+                          : apiPrefix.includes('physical')    ? 'physical_esxi_servers'
                           : 'assets';
                         params.excludeId = id;
                       }
                       const { data } = await api.get(`${apiPrefix}/check-ip`, { params });
                       if (data.used) {
                         const where =
-                          data.conflictTable === 'beijing_assets' ? 'Beijing Inventory'
-                          : data.conflictTable === 'ext_assets'   ? 'Ext. Asset Inventory'
+                          data.conflictTable === 'beijing_assets'        ? 'Beijing Inventory'
+                          : data.conflictTable === 'ext_assets'          ? 'Ext. Asset Inventory'
+                          : data.conflictTable === 'physical_esxi_servers' ? 'Physical & ESXi Servers'
                           : 'Asset Inventory';
                         throw new Error(`IP already exists in ${where}`);
                       }

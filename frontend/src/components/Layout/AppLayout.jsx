@@ -7,6 +7,7 @@ import {
   UserOutlined, TeamOutlined, FileSearchOutlined,
   SettingOutlined, LogoutOutlined, HistoryOutlined, TagsOutlined,
   GlobalOutlined, BarChartOutlined, EyeOutlined, CloudServerOutlined,
+  HddOutlined,
 } from '@ant-design/icons';
 import { useAuth } from '../../context/AuthContext.jsx';
 import api from '../../api/client';
@@ -52,6 +53,14 @@ export default function AppLayout() {
         canWrite && { key: '/ext-assets/import', icon: <UploadOutlined />, label: <Link to="/ext-assets/import">Import</Link> },
       ].filter(Boolean),
     },
+    {
+      key: 'physical-esxi', icon: <HddOutlined />, label: 'Physical & ESXi',
+      children: [
+        { key: '/physical-esxi', label: <Link to="/physical-esxi">All Servers</Link> },
+        canWrite && { key: '/physical-esxi/new', icon: <PlusOutlined />, label: <Link to="/physical-esxi/new">Add Server</Link> },
+        canWrite && { key: '/physical-esxi/import', icon: <UploadOutlined />, label: <Link to="/physical-esxi/import">Import</Link> },
+      ].filter(Boolean),
+    },
     ...customPages.map((p) => ({
       key: `custom-${p.slug}`,
       icon: <AppstoreOutlined />,
@@ -90,7 +99,7 @@ export default function AppLayout() {
           theme="dark"
           mode="inline"
           selectedKeys={[loc.pathname]}
-          defaultOpenKeys={['assets', 'beijing-assets', 'ext-assets', 'admin', ...customPages.map(p => `custom-${p.slug}`)]}
+          defaultOpenKeys={['assets', 'beijing-assets', 'ext-assets', 'physical-esxi', 'admin', ...customPages.map(p => `custom-${p.slug}`)]}
           items={items}
         />
       </Sider>
