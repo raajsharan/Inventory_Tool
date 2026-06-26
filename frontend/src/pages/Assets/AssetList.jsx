@@ -107,15 +107,20 @@ export default function AssetList({
 
   const yesNo = (v) => v == null ? '' : (v ? <Tag color="green">Yes</Tag> : <Tag>No</Tag>);
   const cell = (v) => (v === null || v === undefined || v === '') ? <Typography.Text type="secondary">—</Typography.Text> : v;
+  // Machine values (IPs, hostnames, serials, tags) render in tabular monospace
+  // so columns align and digits are easy to scan.
+  const monoCell = (v) => (v === null || v === undefined || v === '')
+    ? <Typography.Text type="secondary">—</Typography.Text>
+    : <span className="mono">{v}</span>;
 
   const allColumns = [
     { key: 'vm_name', dataIndex: 'vm_name', fixed: 'left', width: 160,
       title: labelOf('vm_name', 'VM Name'),
       render: (v, r) => <Link to={`${basePath}/${r.id}`}>{v || '(unnamed)'}</Link> },
     { key: 'ip_address', dataIndex: 'ip_address', width: 130,
-      title: labelOf('ip_address', 'IP Address'), render: cell },
+      title: labelOf('ip_address', 'IP Address'), render: monoCell },
     { key: 'os_hostname', dataIndex: 'os_hostname', width: 180,
-      title: labelOf('os_hostname', 'Hostname'), render: cell },
+      title: labelOf('os_hostname', 'Hostname'), render: monoCell },
     { key: 'asset_type', dataIndex: 'asset_type', width: 140,
       title: labelOf('asset_type', 'Asset Type'), render: cell },
     { key: 'os_type', dataIndex: 'os_type', width: 110,
@@ -141,11 +146,11 @@ export default function AssetList({
     { key: 'location', dataIndex: 'location', width: 140,
       title: labelOf('location', 'Location'), render: cell },
     { key: 'serial_number', dataIndex: 'serial_number', width: 140,
-      title: labelOf('serial_number', 'Serial'), render: cell },
+      title: labelOf('serial_number', 'Serial'), render: monoCell },
     { key: 'idrac_enabled', dataIndex: 'idrac_enabled', width: 90,
       title: labelOf('idrac_enabled', 'iDRAC'), align: 'center', render: yesNo },
     { key: 'idrac_ip', dataIndex: 'idrac_ip', width: 130,
-      title: labelOf('idrac_ip', 'iDRAC IP'), render: cell },
+      title: labelOf('idrac_ip', 'iDRAC IP'), render: monoCell },
     { key: 'ome_status', dataIndex: 'ome_status', width: 120,
       title: labelOf('ome_status', 'OME Status'), render: cell },
     { key: 'eol_status', dataIndex: 'eol_status', width: 130,
@@ -156,9 +161,9 @@ export default function AssetList({
     { key: 'tenable_installed', dataIndex: 'tenable_installed', width: 100,
       title: labelOf('tenable_installed', 'Tenable'), align: 'center', render: yesNo },
     { key: 'hosted_ip', dataIndex: 'hosted_ip', width: 130,
-      title: labelOf('hosted_ip', 'Hosted IP'), render: cell },
+      title: labelOf('hosted_ip', 'Hosted IP'), render: monoCell },
     { key: 'asset_tag', dataIndex: 'asset_tag', width: 110,
-      title: labelOf('asset_tag', 'Asset Tag'), render: v => v ? <Tag>{v}</Tag> : cell(v) },
+      title: labelOf('asset_tag', 'Asset Tag'), render: v => v ? <Tag className="mono">{v}</Tag> : cell(v) },
     { key: 'created_by_name', dataIndex: 'created_by_name', width: 160,
       title: 'Submitted By', render: cell },
     { key: 'created_at', dataIndex: 'created_at', width: 170,
@@ -177,7 +182,7 @@ export default function AssetList({
         const shown = revealed[r.id];
         return (
           <Space size={4}>
-            <span style={{ fontFamily: 'monospace', minWidth: 70, display: 'inline-block' }}>
+            <span className="mono" style={{ minWidth: 70, display: 'inline-block' }}>
               {shown ?? '••••••••'}
             </span>
             {canWrite && (
@@ -185,6 +190,7 @@ export default function AssetList({
                 <Button
                   size="small"
                   type="text"
+                  aria-label={shown ? 'Hide password' : 'Reveal password'}
                   icon={shown ? <EyeInvisibleOutlined /> : <EyeOutlined />}
                   loading={!!revealing[r.id]}
                   onClick={() => togglePassword(r.id, r.hasPassword)}
@@ -204,11 +210,11 @@ export default function AssetList({
       render: (_, r) => (
         <Space>
           <Tooltip title="Edit">
-            <Button size="small" icon={<EditOutlined />} onClick={() => nav(`${basePath}/${r.id}/edit`)} />
+            <Button size="small" aria-label="Edit asset" icon={<EditOutlined />} onClick={() => nav(`${basePath}/${r.id}/edit`)} />
           </Tooltip>
           {isAdmin && (
             <Tooltip title="Delete">
-              <Button size="small" danger icon={<DeleteOutlined />}
+              <Button size="small" danger aria-label="Delete asset" icon={<DeleteOutlined />}
                 onClick={() => setDeleteTarget({ id: r.id, vm_name: r.vm_name })} />
             </Tooltip>
           )}
@@ -272,7 +278,8 @@ export default function AssetList({
           onChange: (p, ps) => { setPage(p); setPageSize(ps); },
           showTotal: (t) => `${t} assets`,
         }}
-        scroll={{ x: 'max-content' }}
+        scroll={{ x: 'max-content', y: 'calc(100vh - 340px)' }}
+        sticky
         columns={visibleColumns}
       />
       <PasswordConfirmModal

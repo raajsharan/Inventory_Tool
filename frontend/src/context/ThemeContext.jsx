@@ -9,16 +9,37 @@ const DEFAULT_FONT_PX = 14;
 const BASE_TOKEN = {
   colorPrimary: '#1f3a8a',
   colorInfo: '#1f3a8a',
+  colorSuccess: '#16a34a',   // Active / installed / supported
+  colorWarning: '#d97706',   // EOL-approaching / pending
+  colorError:   '#dc2626',   // EOL / inactive / missing security tool
+  colorLink:    '#2563eb',
   borderRadius: 6,
   fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+  fontFamilyCode: '"JetBrains Mono", ui-monospace, monospace',
+};
+
+// Data-dense tuning shared by both themes: compact rows, quiet headers,
+// navy-tinted row hover for fast scanning of large asset tables.
+const DENSE_COMPONENTS = {
+  Table: {
+    cellPaddingBlock: 8,
+    cellPaddingInline: 12,
+    headerColor: '#64748b',
+    rowHoverBg: 'rgba(31,58,138,0.06)',
+  },
+  Form: { itemMarginBottom: 16 },
+  Descriptions: { itemPaddingBottom: 8 },
 };
 
 const LIGHT_COMPONENTS = {
-  Layout: { headerBg: '#ffffff', siderBg: '#0f1e4d', triggerBg: '#0b1740' },
+  ...DENSE_COMPONENTS,
+  Layout: { headerBg: '#ffffff', siderBg: '#0f1e4d', triggerBg: '#0b1740', bodyBg: '#f1f5f9' },
   Menu:   { darkItemBg: '#0f1e4d', darkSubMenuItemBg: '#0b1740', darkItemSelectedBg: '#1f3a8a' },
 };
 
 const DARK_COMPONENTS = {
+  ...DENSE_COMPONENTS,
+  Table:  { ...DENSE_COMPONENTS.Table, headerColor: '#94a3b8', rowHoverBg: 'rgba(96,165,250,0.12)' },
   Layout: { headerBg: '#141414', siderBg: '#000000', triggerBg: '#0a0a0a', bodyBg: '#1f1f1f' },
   Menu:   { darkItemBg: '#000000', darkSubMenuItemBg: '#0a0a0a', darkItemSelectedBg: '#1f3a8a' },
 };
