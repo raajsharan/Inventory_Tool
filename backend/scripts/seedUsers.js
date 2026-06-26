@@ -8,10 +8,17 @@ require('dotenv').config();
 const bcrypt = require('bcrypt');
 const db = require('../src/config/db');
 
+const crypto = require('crypto');
+
+// Generate a strong random password if none is supplied via env. Each seeded
+// account is flagged must_change_password so the operator is forced to reset
+// it at first login instead of running with a well-known default.
+const randomPassword = () => crypto.randomBytes(12).toString('base64url') + 'Aa1!';
+
 const users = [
-  { email: 'admin@example.com',   fullName: 'System Admin',  password: 'Admin@123',   role: 'admin' },
-  { email: 'manager@example.com', fullName: 'Asset Manager', password: 'Manager@123', role: 'asset_manager' },
-  { email: 'viewer@example.com',  fullName: 'Viewer User',   password: 'Viewer@123',  role: 'viewer' },
+  { email: 'admin@example.com',   fullName: 'System Admin',  password: process.env.SEED_ADMIN_PASSWORD   || randomPassword(), role: 'admin' },
+  { email: 'manager@example.com', fullName: 'Asset Manager', password: process.env.SEED_MANAGER_PASSWORD || randomPassword(), role: 'asset_manager' },
+  { email: 'viewer@example.com',  fullName: 'Viewer User',   password: process.env.SEED_VIEWER_PASSWORD  || randomPassword(), role: 'viewer' },
 ];
 
 (async () => {
@@ -19,17 +26,19 @@ const users = [
     for (const u of users) {
       const hash = await bcrypt.hash(u.password, 12);
       await db.query(
-        `INSERT INTO users (email, full_name, password_hash, role)
-         VALUES ($1,$2,$3,$4)
+        `INSERT INTO users (email, full_name, password_hash, role, must_change_password)
+         VALUES ($1,$2,$3,$4,TRUE)
          ON CONFLICT (email) DO UPDATE
            SET full_name = EXCLUDED.full_name,
                password_hash = EXCLUDED.password_hash,
-               role = EXCLUDED.role`,
+               role = EXCLUDED.role,
+               must_change_password = TRUE`,
         [u.email, u.fullName, hash, u.role]
       );
       console.log(`✓ seeded ${u.email} (${u.role}) — password: ${u.password}`);
     }
-    console.log('\nDone. Change these passwords after first login.');
+    console.log('\nDone. These passwords MUST be changed at first login (enforced).');
+    console.log('Copy the generated passwords above now — they are not stored anywhere else.');
     process.exit(0);
   } catch (e) {
     console.error('Seed failed:', e);

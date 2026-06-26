@@ -106,7 +106,11 @@ sudo ln -s /etc/nginx/sites-available/inventory /etc/nginx/sites-enabled/invento
 sudo nginx -t && sudo systemctl reload nginx
 ```
 
-Visit `http://<your-server>/`. Login with the seed admin: `admin@example.com` / `Admin@123` (change immediately).
+Visit `https://<your-server>/`. The seed script (`npm run seed:users`) creates
+`admin@example.com` with a **randomly generated password printed once to the
+console** (or the value of `SEED_ADMIN_PASSWORD` if you set it). All seeded
+accounts are flagged `must_change_password`, so the password **must be changed
+at first login** before any other page is accessible.
 
 For HTTPS, run `sudo certbot --nginx -d your.domain.com`.
 

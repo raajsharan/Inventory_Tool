@@ -326,34 +326,55 @@ async function restoreTableFromCsv({ table, buffer, mode, userId }) {
   let inserted = 0;
   let skipped = 0;
   try {
+    // Whitelist columns against the live schema. CSV headers are attacker-
+    // controlled and are interpolated as SQL identifiers below, so anything
+    // not present in the target table must be rejected — both to prevent SQL
+    // injection via crafted headers and to drop columns the schema has dropped.
+    const { rows: schemaRows } = await client.query(
+      `SELECT column_name FROM information_schema.columns WHERE table_name = $1`,
+      [table]
+    );
+    const allowedCols = new Set(schemaRows.map(r => r.column_name));
+    const unknown = headers.filter(h => h && !allowedCols.has(h));
+    if (unknown.length) {
+      throw new ApiError(400, `CSV contains unknown column(s) for ${table}: ${unknown.join(', ')}`);
+    }
+    const quote = (c) => `"${c.replace(/"/g, '""')}"`;
+
     await client.query('BEGIN');
     if (mode === 'replace') {
-      await client.query(`TRUNCATE TABLE ${table} RESTART IDENTITY CASCADE`);
+      await client.query(`TRUNCATE TABLE ${quote(table)} RESTART IDENTITY CASCADE`);
     }
     for (const row of rows) {
-      // Drop columns the live schema doesn't have (defensive: schema may have evolved).
-      const cols = Object.keys(row).filter(c => row[c] !== undefined);
+      const cols = Object.keys(row).filter(c => allowedCols.has(c) && row[c] !== undefined);
       if (!cols.length) continue;
       const vals = cols.map(c => row[c]);
       const placeholders = cols.map((_, i) => `$${i + 1}`).join(',');
+      const colList = cols.map(quote).join(',');
+      // SAVEPOINT per row so a single bad row doesn't abort the whole
+      // transaction (Postgres aborts a tx on any error until ROLLBACK).
+      if (mode === 'merge') await client.query('SAVEPOINT row_sp');
       try {
         if (mode === 'merge') {
-          const updates = cols.filter(c => c !== 'id').map(c => `${c} = EXCLUDED.${c}`).join(',');
+          const updates = cols.filter(c => c !== 'id').map(c => `${quote(c)} = EXCLUDED.${quote(c)}`).join(',');
           await client.query(
-            `INSERT INTO ${table} (${cols.join(',')}) VALUES (${placeholders})
-             ON CONFLICT (id) DO UPDATE SET ${updates || 'id = ' + table + '.id'}`,
+            `INSERT INTO ${quote(table)} (${colList}) VALUES (${placeholders})
+             ON CONFLICT (id) DO UPDATE SET ${updates || 'id = ' + quote(table) + '.id'}`,
             vals
           );
+          await client.query('RELEASE SAVEPOINT row_sp');
         } else {
           await client.query(
-            `INSERT INTO ${table} (${cols.join(',')}) VALUES (${placeholders})`,
+            `INSERT INTO ${quote(table)} (${colList}) VALUES (${placeholders})`,
             vals
           );
         }
         inserted++;
       } catch (e) {
         skipped++;
-        if (mode === 'replace') {
+        if (mode === 'merge') {
+          await client.query('ROLLBACK TO SAVEPOINT row_sp');
+        } else {
           await client.query('ROLLBACK');
           throw new ApiError(500, `Row failed in replace mode (transaction aborted): ${e.message}`);
         }
@@ -380,8 +401,12 @@ async function restoreTableFromCsv({ table, buffer, mode, userId }) {
 async function restoreTableFromHistoricalFile({ table, filename, mode, userId }) {
   const settings = await getSettings('csv');
   const dir = settings?.directory || '/backups/csv';
-  const filePath = path.join(dir, filename);
-  if (!filePath.startsWith(path.resolve(dir))) {
+  // Reject any path separators / traversal in the filename outright, then
+  // confirm the resolved path stays directly inside the backup directory.
+  if (/[\\/]|\.\./.test(filename)) throw new ApiError(400, 'Invalid filename');
+  const resolvedDir = path.resolve(dir);
+  const filePath = path.resolve(resolvedDir, filename);
+  if (path.dirname(filePath) !== resolvedDir) {
     throw new ApiError(400, 'Invalid file path');
   }
   if (!filename.endsWith('.csv')) throw new ApiError(400, 'Not a CSV file');

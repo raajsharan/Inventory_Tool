@@ -5,7 +5,13 @@ const validate = require('../middleware/validate');
 const { authenticate } = require('../middleware/auth');
 const c = require('../controllers/authController');
 
-const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 20 });
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: Number(process.env.LOGIN_RATE_LIMIT_MAX || 10),
+  standardHeaders: true,
+  legacyHeaders: false,
+  skipSuccessfulRequests: true,
+});
 
 /**
  * @openapi

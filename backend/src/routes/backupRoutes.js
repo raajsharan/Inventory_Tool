@@ -3,7 +3,11 @@ const multer = require('multer');
 const { authorize } = require('../middleware/auth');
 const ctrl = require('../controllers/backupController');
 
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 500 * 1024 * 1024 } });
+// memoryStorage buffers the whole upload in RAM, so cap it to avoid an OOM
+// DoS. Keep this in sync with nginx `client_max_body_size`. Raise both if you
+// genuinely need to restore larger dumps.
+const MAX_UPLOAD = Number(process.env.MAX_RESTORE_UPLOAD_BYTES || 64 * 1024 * 1024);
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: MAX_UPLOAD } });
 const adminOnly = authorize('admin');
 
 router.get('/settings/:kind',  adminOnly, ctrl.getSettings);

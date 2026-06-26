@@ -53,4 +53,10 @@ async function reload(kind) {
   return start();
 }
 
-module.exports = { start, reload };
+function stop() {
+  for (const k of Object.keys(tasks)) {
+    if (tasks[k]) { try { tasks[k].stop(); } catch {} tasks[k] = null; }
+  }
+}
+
+module.exports = { start, reload, stop };

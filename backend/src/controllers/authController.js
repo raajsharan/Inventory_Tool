@@ -8,7 +8,7 @@ async function login(req, res, next) {
   try {
     const { email, password } = req.body;
     const { rows } = await db.query(
-      `SELECT id, email, full_name, password_hash, role, is_active
+      `SELECT id, email, full_name, password_hash, role, is_active, must_change_password
          FROM users WHERE email = $1`,
       [email.toLowerCase()]
     );
@@ -34,7 +34,10 @@ async function login(req, res, next) {
 
     res.json({
       token,
-      user: { id: user.id, email: user.email, fullName: user.full_name, role: user.role },
+      user: {
+        id: user.id, email: user.email, fullName: user.full_name, role: user.role,
+        mustChangePassword: user.must_change_password,
+      },
     });
   } catch (e) { next(e); }
 }
@@ -43,7 +46,7 @@ async function me(req, res, next) {
   try {
     const { rows } = await db.query(
       `SELECT id, email, full_name, role, is_active, last_login_at, created_at,
-              first_name, last_name, job_role, avatar_data_url
+              first_name, last_name, job_role, avatar_data_url, must_change_password
          FROM users WHERE id = $1`,
       [req.user.id]
     );
@@ -55,6 +58,7 @@ async function me(req, res, next) {
         isActive: u.is_active, lastLoginAt: u.last_login_at, createdAt: u.created_at,
         firstName: u.first_name, lastName: u.last_name,
         jobRole: u.job_role, avatarDataUrl: u.avatar_data_url,
+        mustChangePassword: u.must_change_password,
       },
     });
   } catch (e) { next(e); }
@@ -98,15 +102,21 @@ async function updateProfile(req, res, next) {
 async function changePassword(req, res, next) {
   try {
     const { currentPassword, newPassword } = req.body || {};
-    if (!newPassword || newPassword.length < 6) {
-      throw new ApiError(400, 'New password must be at least 6 characters');
+    if (!newPassword || newPassword.length < 8) {
+      throw new ApiError(400, 'New password must be at least 8 characters');
     }
     const { rows } = await db.query(`SELECT password_hash FROM users WHERE id = $1`, [req.user.id]);
     if (!rows.length) throw new ApiError(404, 'User not found');
     const ok = await bcrypt.compare(currentPassword || '', rows[0].password_hash);
     if (!ok) throw new ApiError(401, 'Current password is incorrect');
+    if (await bcrypt.compare(newPassword, rows[0].password_hash)) {
+      throw new ApiError(400, 'New password must be different from the current password');
+    }
     const newHash = await bcrypt.hash(newPassword, 12);
-    await db.query(`UPDATE users SET password_hash = $1 WHERE id = $2`, [newHash, req.user.id]);
+    await db.query(
+      `UPDATE users SET password_hash = $1, must_change_password = FALSE WHERE id = $2`,
+      [newHash, req.user.id]
+    );
     await audit.log({ user: req.user, action: 'UPDATE_PASSWORD', entityType: 'user', entityId: req.user.id, ipAddress: req.ip });
     res.json({ ok: true });
   } catch (e) { next(e); }

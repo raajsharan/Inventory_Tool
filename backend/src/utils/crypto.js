@@ -4,9 +4,14 @@ const ALGO = 'aes-256-gcm';
 const IV_LEN = 12;
 const TAG_LEN = 16;
 
+const SAMPLE_KEY = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
+
 function getKey() {
   const hex = process.env.ENCRYPTION_KEY;
   if (!hex) throw new Error('ENCRYPTION_KEY is not set');
+  if (hex === SAMPLE_KEY) {
+    throw new Error('ENCRYPTION_KEY is the published sample value — refusing to use it');
+  }
   const key = Buffer.from(hex, 'hex');
   if (key.length !== 32) throw new Error('ENCRYPTION_KEY must be 32 bytes hex (64 chars)');
   return key;
